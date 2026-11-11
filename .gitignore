@@ -1,0 +1,13 @@
+# Tài liệu có bản quyền / dữ liệu cá nhân
+*.pdf
+*.mp3
+*.m4a
+*.wav
+elh-backup-*.json
+elh-data.json
+# Secrets
+.env
+.dev.vars
+worker/.wrangler/
+node_modules/
+.DS_Store

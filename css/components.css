@@ -1,0 +1,26 @@
+.page-title {
+  font-size: var(--fs-headline-lg); line-height: var(--lh-headline-lg);
+  font-weight: 700; letter-spacing: -0.015em;
+  color: var(--navy-900);
+}
+.page-sub { margin-top: var(--space-xs); color: var(--text-muted); }
+
+/* Quick capture button (FAB). Hidden while any sheet/modal is open (body[data-overlay-open]). */
+.fab {
+  position: fixed; z-index: 40;
+  right: 24px; bottom: 24px;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 48px; padding: 0 20px;
+  border: 0; border-radius: 9999px;
+  background: var(--teal-500); color: var(--surface);
+  font-size: var(--fs-label-lg); font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-fab);
+  transition: background var(--transition);
+}
+.fab:hover { background: var(--navy-700); }
+body[data-overlay-open] .fab { display: none; }
+
+@media (max-width: 767px) {
+  .fab { right: 16px; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px); }
+}

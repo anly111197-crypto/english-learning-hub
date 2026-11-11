@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>English Learning Hub</title>
+  <meta name="theme-color" content="#0D233D">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ELH">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <!-- SVG icon sprite (inline, no external icon font) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-school" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/><path d="M22 9v6"/></symbol>
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 21V5"/><path d="M9 7h6"/></symbol>
+    <symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+    <symbol id="i-vocab" viewBox="0 0 24 24"><path d="M4 4h12a4 4 0 014 4v12H8a4 4 0 01-4-4z"/><path d="M8 9h8M8 13h5"/></symbol>
+    <symbol id="i-error" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18.5v.01"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </svg>
+
+  <nav class="nav" aria-label="Điều hướng chính">
+    <div class="nav-brand">
+      <span class="nav-brand-mark"><svg class="icon"><use href="#i-school"/></svg></span>
+      <span class="nav-brand-text">
+        <span class="nav-brand-name">English Learning Hub</span><br>
+        <span class="nav-brand-sub">Cambridge IELTS 10–19</span>
+      </span>
+    </div>
+    <ul class="nav-list">
+      <li><a class="nav-link" href="#/" data-nav="dashboard" title="Dashboard">
+        <svg class="icon"><use href="#i-dashboard"/></svg>
+        <span class="nav-label-full">Dashboard</span><span class="nav-label-short">Dashboard</span></a></li>
+      <li><a class="nav-link" href="#/practice" data-nav="practice" title="Cambridge Practice">
+        <svg class="icon"><use href="#i-book"/></svg>
+        <span class="nav-label-full">Cambridge Practice</span><span class="nav-label-short">Cambridge</span></a></li>
+      <li><a class="nav-link" href="#/ai/writing" data-nav="ai" title="Writing &amp; Speaking AI">
+        <svg class="icon"><use href="#i-ai"/></svg>
+        <span class="nav-label-full">Writing &amp; Speaking AI</span><span class="nav-label-short">AI</span></a></li>
+      <li><a class="nav-link" href="#/vocab" data-nav="vocab" title="Vocabulary Bank">
+        <svg class="icon"><use href="#i-vocab"/></svg>
+        <span class="nav-label-full">Vocabulary Bank</span><span class="nav-label-short">Từ vựng</span></a></li>
+      <li><a class="nav-link" href="#/errors" data-nav="errors" title="Grammar Notebook">
+        <svg class="icon"><use href="#i-error"/></svg>
+        <span class="nav-label-full">Grammar Notebook</span><span class="nav-label-short">Lỗi</span></a></li>
+    </ul>
+    <div class="nav-foot" id="sync-status"></div>
+  </nav>
+
+  <div class="app-main">
+    <main id="view" class="view" tabindex="-1"></main>
+  </div>
+
+  <button type="button" class="fab" id="fab-quick-capture" aria-label="Ghi nhanh">
+    <svg class="icon"><use href="#i-plus"/></svg><span>Ghi nhanh</span>
+  </button>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

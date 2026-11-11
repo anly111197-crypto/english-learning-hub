@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="vi"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "on-error": "#ffffff", "inverse-primary": "#acc8f7", "secondary-fixed-dim": "#60d8d8", "surface": "#f8f9ff", "on-tertiary-fixed-variant": "#004f50", "background": "#f8f9ff", "on-surface": "#051c36", "surface-container-high": "#dde9ff", "inverse-on-surface": "#ebf1ff", "error-container": "#ffdad6", "on-background": "#051c36", "surface-container-low": "#eff3ff", "surface-container-lowest": "#ffffff", "on-error-container": "#93000a", "on-primary-fixed": "#001c3b", "outline-variant": "#c4c6cf", "secondary-container": "#7ff5f4", "surface-container": "#e6eeff", "surface-variant": "#d4e3ff", "on-primary": "#ffffff", "surface-bright": "#f8f9ff", "error": "#ba1a1a", "primary-fixed-dim": "#acc8f7", "on-secondary-container": "#007070", "secondary": "#006a6a", "on-tertiary-fixed": "#002020", "surface-container-highest": "#d4e3ff", "on-primary-container": "#84a0cd", "tertiary-fixed": "#69f7f7", "on-surface-variant": "#43474e", "tertiary-container": "#003c3c", "primary-container": "#17365d", "on-primary-fixed-variant": "#2b486f", "tertiary-fixed-dim": "#45dada", "outline": "#74777f", "on-secondary-fixed-variant": "#004f50", "secondary-fixed": "#7ff5f4", "on-tertiary-container": "#00b0b0", "surface-tint": "#435f89", "inverse-surface": "#1d314c", "tertiary": "#002525", "primary": "#002043", "on-secondary-fixed": "#002020", "on-tertiary": "#ffffff", "on-secondary": "#ffffff", "surface-dim": "#c7dbfd", "primary-fixed": "#d5e3ff" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-sm": "0.5rem", "space-md": "1rem", "margin": "2rem", "space-lg": "1.5rem", "gutter": "1.5rem", "margin-mobile": "1rem", "gutter-mobile": "0.75rem", "space-xs": "0.25rem", "space-xl": "2rem" }, fontFamily: { "body-lg": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "headline-lg-mobile": ["Plus Jakarta Sans"] }, fontSize: { "body-lg": ["16px", { "lineHeight": "26px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }], "headline-md": ["22px", { "lineHeight": "28px", "fontWeight": "700" }], "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }], "headline-xl-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "800" }], "headline-xl": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800" }], "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }] } } } }</script><style>@layer base{html,body{width:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}.bottom-safe-offset{bottom:calc(4.5rem + env(safe-area-inset-bottom,0px) + 0.75rem);}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-gutter-mobile flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-sm min-w-0"><div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[20px]">school</span></div><div class="flex flex-col min-w-0"><div class="flex items-center gap-1.5"><span class="font-headline-sm text-headline-sm text-on-surface truncate whitespace-nowrap">Academic Mastery</span><span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm whitespace-nowrap">Band 7.0</span></div><span class="font-label-sm text-label-sm text-on-surface-variant truncate whitespace-nowrap">IELTS Target Tracking</span></div></div><div class="flex items-center gap-space-xs shrink-0"><button aria-label="Search" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-all"><span class="material-symbols-outlined text-[22px]">search</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-1"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-28 bg-surface px-gutter-mobile"><div class="flex flex-col w-full pb-6 space-y-space-md">
+<!-- Skill Switcher Segmented Control -->
+<div class="bg-surface-container-low p-1 rounded-xl flex items-center shadow-sm">
+<button class="flex-1 py-2 px-space-sm rounded-lg bg-surface-container-lowest text-primary font-label-lg text-label-lg shadow-sm flex items-center justify-center gap-1.5 transition-all">
+<span class="material-symbols-outlined text-[18px] text-secondary">edit_note</span>
+<span>Writing</span>
+</button>
+<button class="flex-1 py-2 px-space-sm rounded-lg text-on-surface-variant hover:text-on-surface font-label-lg text-label-lg flex items-center justify-center gap-1.5 transition-all">
+<span class="material-symbols-outlined text-[18px]">mic</span>
+<span>Speaking</span>
+</button>
+</div>
+<!-- Test Context & Tag Header -->
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-container text-on-primary-fixed font-label-sm text-label-sm shrink-0">
+        Cam 15 · T1
+      </span>
+<h1 class="font-headline-sm text-headline-sm text-on-surface truncate">Task 2: Opinion Essay</h1>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm whitespace-nowrap shrink-0">
+<span class="material-symbols-outlined text-[14px]">done_all</span>
+<span>Đã lưu band</span>
+</span>
+</div>
+<!-- Claude AI Score Summary Bento Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm space-y-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-tertiary-container flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-tertiary-fixed text-[22px]">smart_toy</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md text-on-surface">Claude 3.5 Sonnet</span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Đánh giá tiêu chí IELTS 2024</span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Band Hiện Tại</span>
+<div class="flex items-baseline gap-1">
+<span class="font-headline-xl-mobile text-headline-xl-mobile text-primary">6.0</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">/ 7.0 Mục tiêu</span>
+</div>
+</div>
+</div>
+<!-- Dual-Tone Gap Projection Bar -->
+<div class="space-y-1">
+<div class="flex justify-between items-center font-label-sm text-label-sm text-on-surface-variant">
+<span>Tiến trình đến Target</span>
+<span class="font-bold text-secondary">Cách mục tiêu 1.0 Band</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden flex">
+<div class="h-full bg-primary-container w-[75%] rounded-l-full"></div>
+<div class="h-full bg-secondary w-[15%]"></div>
+</div>
+</div>
+<!-- 4 Sub-criteria Grid -->
+<div class="grid grid-cols-2 gap-space-xs pt-space-xs">
+<div class="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Task Response</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Ý tưởng đủ, thiếu đào sâu</span>
+</div>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-lowest font-headline-sm text-headline-sm text-primary shadow-sm">6.0</span>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Coherence &amp; Cohesion</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Mạch lạc, liên kết tốt</span>
+</div>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-lowest font-headline-sm text-headline-sm text-secondary shadow-sm">6.5</span>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Lexical Resource</span>
+<span class="font-body-sm text-body-sm text-on-surface truncate">Lặp từ học thuật</span>
+</div>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-lowest font-headline-sm text-headline-sm text-primary shadow-sm">6.0</span>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Grammar Range</span>
+<span class="font-body-sm text-body-sm text-error truncate">Sai mạo từ &amp; thì</span>
+</div>
+<span class="px-2 py-0.5 rounded-md bg-error-container font-headline-sm text-headline-sm text-on-error-container shadow-sm">5.5</span>
+</div>
+</div>
+</div>
+<!-- Viewer Mode Selector -->
+<div class="flex flex-col space-y-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">Chế độ phân tích bài viết</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">284 từ</span>
+</div>
+<div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
+<button class="flex-1 py-1.5 px-2 rounded-lg font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface text-center whitespace-nowrap transition-colors">
+        Highlight lỗi
+      </button>
+<button class="flex-1 py-1.5 px-2 rounded-lg bg-surface-container-lowest text-secondary font-label-sm text-label-sm shadow-sm text-center whitespace-nowrap">
+        So sánh (Diff)
+      </button>
+<button class="flex-1 py-1.5 px-2 rounded-lg font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface text-center whitespace-nowrap transition-colors">
+        Bài mẫu Band 7.5+
+      </button>
+</div>
+</div>
+<!-- Alternating Diff Viewer -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm space-y-space-md">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Đoạn văn 1: Mở bài &amp; Tổng quan</span>
+<span class="font-label-sm text-label-sm text-secondary bg-surface-container-high px-2 py-0.5 rounded-full">Claude Refinements</span>
+</div>
+<!-- Segment 1 -->
+<div class="space-y-1.5">
+<div class="bg-error-container/40 p-2.5 rounded-lg flex items-start gap-2">
+<span class="font-label-sm text-label-sm text-error font-bold shrink-0 mt-0.5">Gốc:</span>
+<p class="font-body-md text-body-md text-on-surface">
+          In modern society, <span class="line-through text-error decoration-2 font-medium">the technology has changed</span> our living conditions comprehensively.
+        </p>
+</div>
+<div class="bg-secondary-container/30 p-2.5 rounded-lg flex items-start gap-2">
+<span class="font-label-sm text-label-sm text-on-secondary-container font-bold shrink-0 mt-0.5">Sửa:</span>
+<p class="font-body-md text-body-md text-on-surface">
+          In modern society, <span class="bg-secondary-container text-on-secondary-container px-1 rounded font-medium">technological advancements have changed</span> our living conditions comprehensively.
+        </p>
+</div>
+</div>
+<!-- Segment 2 -->
+<div class="space-y-1.5">
+<div class="bg-error-container/40 p-2.5 rounded-lg flex items-start gap-2">
+<span class="font-label-sm text-label-sm text-error font-bold shrink-0 mt-0.5">Gốc:</span>
+<p class="font-body-md text-body-md text-on-surface">
+          Consequently, scientists need to <span class="line-through text-error decoration-2 font-medium">make a research</span> on environmental impacts before deploying.
+        </p>
+</div>
+<div class="bg-secondary-container/30 p-2.5 rounded-lg flex items-start gap-2">
+<span class="font-label-sm text-label-sm text-on-secondary-container font-bold shrink-0 mt-0.5">Sửa:</span>
+<p class="font-body-md text-body-md text-on-surface">
+          Consequently, scientists need to <span class="bg-secondary-container text-on-secondary-container px-1 rounded font-medium">conduct empirical research</span> on environmental impacts before deploying.
+        </p>
+</div>
+</div>
+<!-- Segment 3 -->
+<div class="space-y-1.5">
+<div class="bg-error-container/40 p-2.5 rounded-lg flex items-start gap-2">
+<span class="font-label-sm text-label-sm text-error font-bold shrink-0 mt-0.5">Gốc:</span>
+<p class="font-body-md text-body-md text-on-surface">
+          This essay will discuss <span class="line-through text-error decoration-2 font-medium">about both views</span> and give my personal evaluation.
+        </p>
+</div>
+<div class="bg-secondary-container/30 p-2.5 rounded-lg flex items-start gap-2">
+<span class="font-label-sm text-label-sm text-on-secondary-container font-bold shrink-0 mt-0.5">Sửa:</span>
+<p class="font-body-md text-body-md text-on-surface">
+          This essay will <span class="bg-secondary-container text-on-secondary-container px-1 rounded font-medium">examine both perspectives</span> and present a reasoned evaluation.
+        </p>
+</div>
+</div>
+</div>
+<!-- Smart Collection Tray / Selection Drawer -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-md space-y-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">inventory_2</span>
+<h2 class="font-label-lg text-label-lg text-on-surface">Khay lưu trữ thông minh</h2>
+</div>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+        3 lỗi · 4 từ vựng
+      </span>
+</div>
+<div class="space-y-space-xs">
+<!-- Item 1: Grammar Error -->
+<label class="flex items-start gap-space-sm p-2.5 rounded-xl bg-surface-container-low active:bg-surface-container transition-colors cursor-pointer select-none">
+<input checked="" class="mt-1 w-4 h-4 rounded text-secondary focus:ring-0 accent-secondary shrink-0" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-error-container text-on-error-container leading-none">GRA</span>
+<span class="font-label-md text-label-md text-on-surface">the technology → technology</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Danh từ không đếm được chỉ khái niệm chung không dùng "the".</p>
+</div>
+</label>
+<!-- Item 2: Lexical Error -->
+<label class="flex items-start gap-space-sm p-2.5 rounded-xl bg-surface-container-low active:bg-surface-container transition-colors cursor-pointer select-none">
+<input checked="" class="mt-1 w-4 h-4 rounded text-secondary focus:ring-0 accent-secondary shrink-0" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-primary leading-none">Collocation</span>
+<span class="font-label-md text-label-md text-on-surface">make a research → conduct research</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Cụm từ chuẩn học thuật (Band 7.0+ Academic Collocation).</p>
+</div>
+</label>
+<!-- Item 3: Vocabulary Upgrade -->
+<label class="flex items-start gap-space-sm p-2.5 rounded-xl bg-surface-container-low active:bg-surface-container transition-colors cursor-pointer select-none">
+<input checked="" class="mt-1 w-4 h-4 rounded text-secondary focus:ring-0 accent-secondary shrink-0" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary-container text-on-secondary-container leading-none">Vocab Band 7.5</span>
+<span class="font-label-md text-label-md text-on-surface">technological advancements</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Nâng cấp từ ngữ biểu đạt sự phát triển vượt bậc.</p>
+</div>
+</label>
+<!-- Item 4: Redundancy Correction -->
+<label class="flex items-start gap-space-sm p-2.5 rounded-xl bg-surface-container-low active:bg-surface-container transition-colors cursor-pointer select-none">
+<input class="mt-1 w-4 h-4 rounded text-secondary focus:ring-0 accent-secondary shrink-0" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-error-container text-on-error-container leading-none">Grammar</span>
+<span class="font-label-md text-label-md text-on-surface">discuss about → examine / discuss</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Động từ "discuss" là ngoại động từ, không đi cùng "about".</p>
+</div>
+</label>
+</div>
+<!-- Sticky Drawer Primary CTA -->
+<button class="w-full min-h-[48px] py-3 px-space-md rounded-xl bg-secondary hover:bg-on-secondary-container active:scale-[0.99] text-on-secondary font-label-lg text-label-lg shadow-md flex items-center justify-center gap-2 transition-all">
+<span class="material-symbols-outlined text-[20px]">save_alt</span>
+<span class="whitespace-nowrap">Lưu đã chọn vào Sổ tay &amp; Từ vựng (Claude AI)</span>
+</button>
+</div>
+</div></main><div class="fixed right-margin-mobile bottom-safe-offset z-50 pointer-events-auto"><button class="h-11 px-space-md rounded-full bg-secondary text-on-secondary shadow-lg flex items-center gap-1.5 active:scale-95 transition-transform whitespace-nowrap font-label-lg text-label-lg"><span class="material-symbols-outlined text-[20px]">add</span><span>Ghi nhanh</span></button></div><nav class="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,0,0,0.05)]" data-active-classes="text-secondary font-semibold"><div class="flex justify-between items-center h-16 px-1"><a class="flex flex-1 flex-col items-center justify-center h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[22px]">grid_view</span><span class="font-label-sm text-label-sm mt-0.5 whitespace-nowrap">Dashboard</span></a><a class="flex flex-1 flex-col items-center justify-center h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="cambridge" href="#"><span class="material-symbols-outlined text-[22px]">menu_book</span><span class="font-label-sm text-label-sm mt-0.5 whitespace-nowrap">Cambridge</span></a><a aria-current="page" class="flex flex-1 flex-col items-center justify-center h-12 transition-colors text-secondary font-semibold" data-path="ai-prep" href="#"><span class="material-symbols-outlined text-[22px]">psychology</span><span class="font-label-sm text-label-sm mt-0.5 whitespace-nowrap">AI</span></a><a class="flex flex-1 flex-col items-center justify-center h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="tu-vung" href="#"><span class="material-symbols-outlined text-[22px]">bookmark</span><span class="font-label-sm text-label-sm mt-0.5 whitespace-nowrap">Từ vựng</span></a><a class="flex flex-1 flex-col items-center justify-center h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="loi" href="#"><span class="material-symbols-outlined text-[22px]">error_outline</span><span class="font-label-sm text-label-sm mt-0.5 whitespace-nowrap">Lỗi</span></a></div></nav></body></html>

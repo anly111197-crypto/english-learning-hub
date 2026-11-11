@@ -1,0 +1,52 @@
+/* Design tokens: single source of truth (spec section 9). No hard-coded colors elsewhere. */
+:root {
+  --navy-900: #0D233D;  --navy-700: #17365D;   /* sidebar, dark primary buttons */
+  --teal-500: #18A6A6;  --teal-400: #20C5C5;   /* primary action, band >= 7.0 */
+  --bg: #F5F7FA;  --surface: #FFFFFF;  --border: #E2E8F0;
+  --text: #051C36;  --text-muted: #43474E;
+  --band-low: #F59E0B;   /* < 6.0 */
+  --band-mid: #0D233D;   /* 6.0-6.5 */
+  --band-high: #18A6A6;  /* >= 7.0 */
+  --band-empty: #EEF1F5;
+  --err-grammar: #BA1A1A;  --err-vocab: #F59E0B;  --err-structure: #7C3AED;  --fixed: #10B981;
+  --radius-sm: 4px; --radius: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Derived from DESIGN.md (shell only) */
+  --on-navy: #FFFFFF;
+  --on-navy-muted: #ACC8F7;          /* inverse-primary */
+  --navy-border: #163459;
+  --navy-hover: rgba(255, 255, 255, 0.08);
+
+  /* Spacing (DESIGN.md) */
+  --space-xs: 0.25rem; --space-sm: 0.5rem; --space-md: 1rem; --space-lg: 1.5rem; --space-xl: 2rem;
+  --gutter: 1.5rem; --margin: 2rem;
+
+  /* Typography (DESIGN.md) */
+  --fs-headline-xl: 36px;  --lh-headline-xl: 44px;
+  --fs-headline-lg: 30px;  --lh-headline-lg: 38px;
+  --fs-headline-md: 22px;  --lh-headline-md: 28px;
+  --fs-headline-sm: 18px;  --lh-headline-sm: 24px;
+  --fs-body-lg: 16px;  --lh-body-lg: 26px;
+  --fs-body-md: 14px;  --lh-body-md: 22px;
+  --fs-body-sm: 12px;  --lh-body-sm: 18px;
+  --fs-label-lg: 14px; --fs-label-md: 12px; --fs-label-sm: 11px;
+
+  /* Layout */
+  --sidebar-w: 260px;
+  --tabbar-h: 64px;
+  --tap-min: 44px;
+  --transition: 150ms ease;
+  --shadow-fab: 0 6px 16px rgba(13, 35, 61, 0.28);
+}
+
+@media (max-width: 767px) {
+  :root {
+    --fs-headline-xl: 28px;  --lh-headline-xl: 36px;
+    --fs-headline-lg: 24px;  --lh-headline-lg: 32px;
+    --gutter: 0.75rem; --margin: 1rem;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --sidebar-w: 72px; }
+}

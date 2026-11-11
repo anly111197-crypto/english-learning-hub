@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-highest":"#d4e3ff","secondary":"#006a6a","on-tertiary-fixed":"#002020","on-tertiary-container":"#00b0b0","on-primary-fixed-variant":"#2b486f","inverse-on-surface":"#ebf1ff","on-error":"#ffffff","surface-container-high":"#dde9ff","on-tertiary":"#ffffff","on-primary-fixed":"#001c3b","on-surface":"#051c36","on-secondary-fixed":"#002020","outline-variant":"#c4c6cf","on-background":"#051c36","primary-fixed":"#d5e3ff","surface":"#f8f9ff","on-primary":"#ffffff","error-container":"#ffdad6","surface-variant":"#d4e3ff","on-secondary-container":"#007070","primary-fixed-dim":"#acc8f7","tertiary-fixed-dim":"#45dada","primary":"#002043","inverse-primary":"#acc8f7","on-secondary":"#ffffff","surface-container-lowest":"#ffffff","surface-container":"#e6eeff","surface-dim":"#c7dbfd","tertiary-container":"#003c3c","on-secondary-fixed-variant":"#004f50","on-error-container":"#93000a","on-surface-variant":"#43474e","primary-container":"#17365d","surface-bright":"#f8f9ff","outline":"#74777f","tertiary-fixed":"#69f7f7","inverse-surface":"#1d314c","tertiary":"#002525","secondary-container":"#7ff5f4","error":"#ba1a1a","on-tertiary-fixed-variant":"#004f50","surface-container-low":"#eff3ff","surface-tint":"#435f89","secondary-fixed":"#7ff5f4","on-primary-container":"#84a0cd","secondary-fixed-dim":"#60d8d8","background":"#f8f9ff"},borderRadius:{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},spacing:{"margin":"2rem","space-md":"1rem","space-lg":"1.5rem","space-sm":"0.5rem","space-xl":"2rem","space-xs":"0.25rem","margin-mobile":"1rem","gutter":"1.5rem","gutter-mobile":"0.75rem"},fontFamily:{"headline-xl":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-xl-mobile":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-lg-mobile":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"]},fontSize:{"headline-xl":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"800"}],"body-lg":["16px",{lineHeight:"26px",fontWeight:"400"}],"headline-xl-mobile":["28px",{lineHeight:"36px",letterSpacing:"-0.02em",fontWeight:"800"}],"headline-lg":["30px",{lineHeight:"38px",letterSpacing:"-0.015em",fontWeight:"700"}],"body-md":["14px",{lineHeight:"22px",fontWeight:"400"}],"headline-md":["22px",{lineHeight:"28px",fontWeight:"700"}],"label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"700"}],"label-md":["12px",{lineHeight:"16px",letterSpacing:"0.02em",fontWeight:"600"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.01em",fontWeight:"600"}],"body-sm":["12px",{lineHeight:"18px",fontWeight:"400"}],"headline-lg-mobile":["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"700"}],"headline-sm":["18px",{lineHeight:"24px",fontWeight:"600"}]}}}};</script></head><body class="bg-[#F5F7FA] font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-screen w-64 bg-[#0D233D] z-50 flex flex-col justify-between py-6 px-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)] select-none"><div class="flex flex-col gap-6"><div class="px-3"><div class="flex items-center gap-2 mb-1"><span class="material-symbols-outlined text-[#18A6A6] text-2xl">school</span><span class="font-headline-sm text-headline-sm text-white tracking-tight whitespace-nowrap">Academic Mastery</span></div><p class="font-label-sm text-label-sm text-outline-variant tracking-wider uppercase whitespace-nowrap">IELTS ACADEMIC SELF-STUDY</p></div><nav class="flex flex-col gap-1" data-active-classes="bg-[#17365D] text-white border-l-4 border-[#18A6A6] font-label-lg"><a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-outline-variant hover:bg-[#17365D] hover:text-white transition-colors font-label-lg text-label-lg whitespace-nowrap" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span><span>Dashboard</span></a><a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-outline-variant hover:bg-[#17365D] hover:text-white transition-colors font-label-lg text-label-lg whitespace-nowrap" data-path="cambridge-practice" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span><span>Cambridge Practice</span></a><a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-outline-variant hover:bg-[#17365D] hover:text-white transition-colors font-label-lg text-label-lg whitespace-nowrap" data-path="writing-and-speaking-ai" href="#"><span class="material-symbols-outlined text-[20px]">smart_toy</span><span>Writing &amp; Speaking AI</span></a><a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-outline-variant hover:bg-[#17365D] hover:text-white transition-colors font-label-lg text-label-lg whitespace-nowrap" data-path="vocabulary-bank" href="#"><span class="material-symbols-outlined text-[20px]">style</span><span>Vocabulary Bank</span></a><a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-outline-variant hover:bg-[#17365D] hover:text-white transition-colors font-label-lg text-label-lg whitespace-nowrap" data-path="grammar-notebook" href="#"><span class="material-symbols-outlined text-[20px]">edit_note</span><span>Grammar Notebook</span></a></nav></div><div class="flex flex-col gap-4 px-2 pt-4 border-t border-[#17365D]/60"><button class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-label-md text-label-md transition-colors whitespace-nowrap" type="button"><span class="material-symbols-outlined text-[18px]">login</span><span>Đăng nhập Google</span></button><div class="flex flex-col gap-1.5 px-1"><div class="flex items-center gap-2 text-outline-variant font-body-sm text-body-sm"><span class="w-1.5 h-1.5 rounded-full bg-[#18A6A6]"></span><span class="whitespace-nowrap">Đã đồng bộ · 2 phút trước</span></div><a class="text-outline-variant hover:text-white font-label-sm text-label-sm transition-colors flex items-center gap-1 whitespace-nowrap" data-path="json-backup" href="#"><span class="material-symbols-outlined text-[14px]">cloud_download</span><span>Sao lưu JSON</span></a></div></div></aside><div class="pl-64 min-h-screen flex flex-col bg-[#F5F7FA]"><header class="fixed top-0 left-64 right-0 h-16 bg-[#F5F7FA]/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-8"><div class="flex items-center flex-1 max-w-xl"><div class="relative w-full"><span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span><input class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest text-on-surface placeholder:text-outline text-body-md font-body-md rounded-lg border border-outline-variant/40 focus:outline-none focus:ring-1 focus:ring-secondary transition-all" placeholder="Tìm từ vựng, lỗi, tài liệu..." type="text"/></div></div><div class="flex items-center gap-4"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative pt-16 flex-1 w-full px-8 bg-[#F5F7FA]"><div class="flex flex-col w-full pb-16 space-y-8">
+<!-- PAGE HEADER & NAVIGATION -->
+<div class="flex flex-col gap-6 pt-2">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary/10 text-secondary font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Claude 3.5 Sonnet Engine
+          </span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="text-outline font-label-sm text-label-sm whitespace-nowrap">Chuẩn Cambridge IELTS 2024</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Writing &amp; Speaking AI</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Phân tích, chấm điểm chi tiết 4 tiêu chí và đề xuất cải thiện chuyên sâu từ Claude AI.</p>
+</div>
+<!-- Segmented Main Tab Switcher -->
+<div class="inline-flex p-1 rounded-xl bg-surface-container self-start md:self-auto shadow-inner">
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-surface-container-lowest text-primary shadow-sm font-label-lg text-label-lg whitespace-nowrap transition-all" id="tab-btn-writing" onclick="switchSkillTab('writing')" type="button">
+<span class="material-symbols-outlined text-[20px] text-secondary" style="font-variation-settings: 'FILL' 1;">edit_note</span>
+<span>IELTS Writing</span>
+</button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-on-surface-variant hover:text-primary font-label-lg text-label-lg whitespace-nowrap transition-all" id="tab-btn-speaking" onclick="switchSkillTab('speaking')" type="button">
+<span class="material-symbols-outlined text-[20px]">mic</span>
+<span>IELTS Speaking</span>
+</button>
+</div>
+</div>
+</div>
+<!-- ==================== TAB 1: IELTS WRITING SECTION ==================== -->
+<div class="flex flex-col space-y-6" id="writing-tab-content">
+<!-- 1. TOP CONTROL & SOURCE BAR -->
+<div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-lowest shadow-sm">
+<div class="flex flex-wrap items-center gap-3">
+<!-- Source Selector -->
+<div class="flex items-center gap-2">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">Nguồn:</span>
+<div class="relative">
+<select class="appearance-none pl-3 pr-8 py-1.5 bg-surface-container-low text-primary font-label-md text-label-md rounded-lg focus:outline-none focus:ring-1 focus:ring-secondary cursor-pointer whitespace-nowrap">
+<option selected="">Cam 15 · Test 1 · Task 2</option>
+<option>Cam 15 · Test 1 · Task 1</option>
+<option>Cam 15 · Test 2 · Task 2</option>
+<option>Bài tự do (Free Writing)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="h-4 w-px bg-surface-container"></div>
+<!-- Task Type Selector -->
+<div class="flex items-center gap-2">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">Dạng bài:</span>
+<div class="relative">
+<select class="appearance-none pl-3 pr-8 py-1.5 bg-surface-container-low text-primary font-label-md text-label-md rounded-lg focus:outline-none focus:ring-1 focus:ring-secondary cursor-pointer whitespace-nowrap">
+<option selected="">Task 2: Opinion (Agree/Disagree)</option>
+<option>Task 2: Discussion Both Views</option>
+<option>Task 2: Problem &amp; Solution</option>
+<option>Task 2: Two-part Question</option>
+<option>Task 1: Line Graph</option>
+<option>Task 1: Bar Chart / Table</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Quick Status & Sync Indicator -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/10 text-secondary font-label-md text-label-md whitespace-nowrap">
+<span class="material-symbols-outlined text-[16px]">cloud_sync</span>
+<span>Đã ghi band vào Cam 15 · Test 1 · Writing</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm whitespace-nowrap">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Claude AI Active</span>
+</div>
+</div>
+</div>
+<!-- 2. TWO-COLUMN WORKSPACE -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<!-- A. LEFT COLUMN: ESSAY INPUT & COPING/PASTING -->
+<div class="lg:col-span-6 flex flex-col space-y-5">
+<!-- Main Writing Input Card -->
+<div class="flex flex-col bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<!-- Card Header & Prompt Toggle -->
+<div class="p-5 flex flex-col gap-3 bg-surface-container-lowest">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[22px]">history_edu</span>
+<h2 class="font-headline-sm text-headline-sm text-primary">Đề bài &amp; Bài viết của bạn</h2>
+</div>
+<button class="text-secondary hover:text-primary font-label-md text-label-md flex items-center gap-1 whitespace-nowrap transition-colors" onclick="document.getElementById('prompt-accordion').classList.toggle('hidden')" type="button">
+<span>Thu gọn đề</span>
+<span class="material-symbols-outlined text-[18px]">unfold_less</span>
+</button>
+</div>
+<!-- Collapsible Prompt Box -->
+<div class="p-3.5 rounded-lg bg-surface-container-low transition-all" id="prompt-accordion">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider block mb-1">WRITING TASK 2 PROMPT</span>
+<p class="font-body-md text-body-md text-on-surface italic">
+                “Some people believe that unpaid community service should be a compulsory part of high school programmes. To what extent do you agree or disagree?”
+              </p>
+</div>
+</div>
+<!-- Essay Text Area -->
+<div class="px-5 pt-1 pb-3 flex-1 flex flex-col">
+<label class="sr-only" for="essay-input-field">Nội dung bài viết</label>
+<textarea class="w-full p-4 bg-surface rounded-lg font-body-md text-body-md text-on-surface leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-secondary transition-all" id="essay-input-field" placeholder="Nhập hoặc dán bài viết luận của bạn tại đây..." rows="16">It is often argued that high school students should be mandated to participate in voluntary community activities as a formal prerequisite for graduation. In my opinion, I completely agree with this viewpoint because such engagement not only cultivates civic responsibility among teenagers but also equips them with indispensable practical capabilities.
+
+First of all, community work plays an essential role in broadening youngsters' social perspective. When adolescents engage in charitable initiatives, such as assisting nursing homes or participating in municipal cleanups, they are exposed to the daily struggles of vulnerable populations. Consequently, this involvement fosters empathy and a profound sense of civic duty, preventing them from developing self-centred mindsets. Furthermore, engaging in communal activities helps alleviate the burden placed on local governments and promotes solidarity throughout the neighbourhood.
+
+On the other hand, compulsory volunteer programmes provide a valuable environment for students to acquire interpersonal skills. In regular academic curricula, pupils predominantly make a research on theoretical topics and prepare for examinations. Conversely, community initiatives demand teamwork, conflict resolution, and communication with people from diverse walks of life. The technology has changed the employment landscape, and modern recruiters consistently prioritize candidates who possess both emotional intelligence and civic awareness.
+
+In conclusion, governments has focused on theoretical knowledge for decades, but mandating unpaid community service is deeply beneficial. It nurtures moral compasses and provides practical qualifications necessary for future employment.</textarea>
+</div>
+<!-- Sticky Status & CTA Inside Card -->
+<div class="p-4 bg-surface-container-low flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-4">
+<!-- Word Count Indicator -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary font-label-md text-label-md whitespace-nowrap">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span>268 / 250 từ</span>
+</div>
+<!-- Timer Pill -->
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-md text-label-md whitespace-nowrap">
+<span class="material-symbols-outlined text-[16px] text-outline">timer</span>
+<span>40:00 (Hết giờ)</span>
+</div>
+</div>
+<!-- Primary Action CTA -->
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-secondary hover:bg-on-tertiary-container text-white font-label-lg text-label-lg whitespace-nowrap shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span>Phân tích với Claude</span>
+</button>
+</div>
+</div>
+<!-- Copy / Paste JSON Fallback Module -->
+<div class="p-4 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary flex items-center gap-1.5 whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px] text-outline">data_object</span>
+<span>Chấm thủ công (Offline / Copy-Paste Mode)</span>
+</span>
+<button class="flex items-center gap-1 px-3 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-primary font-label-sm text-label-sm whitespace-nowrap transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+<span>Sao chép prompt Claude</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<input class="flex-1 px-3.5 py-2 rounded-lg bg-surface-container-low text-on-surface text-body-sm font-body-sm placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-secondary" placeholder="Dán kết quả JSON trả về từ Claude vào đây..." type="text"/>
+<button class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-container text-white font-label-md text-label-md whitespace-nowrap transition-colors" type="button">
+              Đọc JSON
+            </button>
+</div>
+</div>
+</div>
+<!-- B. RIGHT COLUMN: CLAUDE AI EVALUATION & ANALYSIS -->
+<div class="lg:col-span-6 flex flex-col space-y-5">
+<!-- Main Evaluation Header Card -->
+<div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-5">
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-white shadow-sm">
+<span class="font-headline-sm text-headline-sm font-bold tracking-tight whitespace-nowrap">6.0</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-primary tracking-tight">Overall Band 6.0</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-label-sm text-label-sm whitespace-nowrap">Target 7.0</span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-0.5 whitespace-nowrap">Khoảng cách: +1.0 Band cần cải thiện ngữ pháp và lập luận</p>
+</div>
+</div>
+<!-- Sync confirmation note -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low text-secondary font-label-sm text-label-sm whitespace-nowrap">
+<span class="material-symbols-outlined text-[15px]">done_all</span>
+<span>Đã ghi vào sổ theo dõi</span>
+</div>
+</div>
+<!-- 4 Scoring Criteria Cards Grid -->
+<div class="grid grid-cols-2 gap-3 pt-1">
+<!-- 1. TR -->
+<div class="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline whitespace-nowrap">Task Response</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container text-primary font-label-md text-label-md whitespace-nowrap">TR 6.0</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                Trả lời đầy đủ yêu cầu đề bài nhưng lập luận phần phản biện còn chung chung.
+              </p>
+</div>
+<!-- 2. CC -->
+<div class="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline whitespace-nowrap">Coherence &amp; Cohesion</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary/15 text-secondary font-label-md text-label-md whitespace-nowrap">CC 6.5</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                Mạch lạc tốt, liên kết câu tự nhiên nhưng lặp một số từ nối chuyển ý.
+              </p>
+</div>
+<!-- 3. LR -->
+<div class="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline whitespace-nowrap">Lexical Resource</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container text-primary font-label-md text-label-md whitespace-nowrap">LR 6.0</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                Vốn từ học thuật phong phú vừa phải, có một số lỗi kết hợp từ (collocations).
+              </p>
+</div>
+<!-- 4. GRA -->
+<div class="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline whitespace-nowrap">Grammatical Range</span>
+<span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-label-md text-label-md whitespace-nowrap">GRA 5.5</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                Đa dạng cấu trúc câu nhưng còn sai lỗi mạo từ và sự hòa hợp chủ vị.
+              </p>
+</div>
+</div>
+</div>
+<!-- View Switcher & Highlighted Essay Box -->
+<div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-4 relative">
+<!-- View Switcher Bar -->
+<div class="flex flex-wrap items-center justify-between gap-3 pb-3">
+<div class="inline-flex p-1 rounded-lg bg-surface-container">
+<button class="px-3 py-1.5 rounded-md bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm whitespace-nowrap" type="button">
+                Bài gốc có highlight
+              </button>
+<button class="px-3 py-1.5 rounded-md text-on-surface-variant hover:text-primary font-label-md text-label-md whitespace-nowrap" type="button">
+                So sánh gốc / sửa
+              </button>
+<button class="px-3 py-1.5 rounded-md text-on-surface-variant hover:text-primary font-label-md text-label-md whitespace-nowrap" type="button">
+                Bản Band 7.0+
+              </button>
+</div>
+<!-- Color Annotation Legend -->
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-rose-600 whitespace-nowrap">
+<span class="w-2.5 h-0.5 bg-rose-500 rounded"></span>
+                Ngữ pháp
+              </span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-amber-600 whitespace-nowrap">
+<span class="w-2.5 h-0.5 bg-amber-500 rounded"></span>
+                Từ vựng
+              </span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-blue-600 whitespace-nowrap">
+<span class="w-2.5 h-0.5 bg-blue-500 rounded"></span>
+                Mạch lạc
+              </span>
+</div>
+</div>
+<!-- Essay Text Annotated Canvas -->
+<div class="relative font-body-md text-body-md text-on-surface leading-loose p-4 rounded-xl bg-surface space-y-4">
+<p>
+              It is often argued that high school students should be mandated to participate in voluntary community activities as a formal prerequisite for graduation. In my opinion, I completely agree with this viewpoint because such engagement not only cultivates civic responsibility among teenagers but also equips them with 
+              <span class="bg-secondary/15 text-secondary px-1.5 py-0.5 rounded font-medium whitespace-nowrap">indispensable</span> practical capabilities.
+            </p>
+<p>
+              First of all, community work plays an essential role in broadening youngsters' social perspective. When adolescents engage in charitable initiatives, they are exposed to the daily struggles of vulnerable populations. Consequently, this involvement fosters empathy and a profound sense of civic duty, preventing them from developing self-centred mindsets. Furthermore, engaging in communal activities helps 
+              <span class="bg-secondary/15 text-secondary px-1.5 py-0.5 rounded font-medium whitespace-nowrap">alleviate the burden</span> placed on local governments and 
+              <span class="bg-secondary/15 text-secondary px-1.5 py-0.5 rounded font-medium whitespace-nowrap">fosters social cohesion</span> throughout the neighbourhood.
+            </p>
+<p class="relative">
+              On the other hand, compulsory volunteer programmes provide a valuable environment for students to acquire interpersonal skills. In regular academic curricula, pupils predominantly 
+              
+              <!-- Target Annotated Phrase with interactive visual marker -->
+<span class="relative inline-block">
+<span class="bg-amber-100 text-amber-900 px-1 py-0.5 rounded decoration-amber-500 underline underline-offset-4 decoration-2 cursor-pointer font-semibold whitespace-nowrap">
+                  make a research
+                </span>
+<!-- OPEN POPOVER (Inspection Card) -->
+<span class="absolute z-30 left-0 top-full mt-2 w-80 sm:w-96 p-4 rounded-xl bg-surface-container-lowest shadow-xl text-left font-normal border border-outline-variant/30 flex flex-col gap-3">
+<span class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-label-sm text-label-sm uppercase tracking-wide whitespace-nowrap">
+                      Collocations · C1
+                    </span>
+<span class="text-outline font-label-sm text-label-sm whitespace-nowrap">Lexical Resource</span>
+</span>
+<!-- Correction Diff Display inside Popover -->
+<span class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low font-body-sm text-body-sm">
+<span class="line-through text-rose-600 whitespace-nowrap">make a research</span>
+<span class="material-symbols-outlined text-[16px] text-outline">arrow_forward</span>
+<span class="font-bold text-secondary whitespace-nowrap">do research / conduct research</span>
+</span>
+<!-- Vietnamese Pedagogical Explanation -->
+<span class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                    Trong tiếng Anh học thuật, danh từ <strong>“research”</strong> là danh từ không đếm được và luôn đi với động từ <strong>“do”</strong> hoặc <strong>“conduct / undertake”</strong>, không kết hợp với “make”.
+                  </span>
+<!-- Action button -->
+<button class="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-secondary hover:bg-on-tertiary-container text-white font-label-md text-label-md transition-colors whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[16px]">bookmark_add</span>
+<span>+ Lưu lỗi vào sổ tay</span>
+</button>
+</span>
+</span>
+
+              on theoretical topics. 
+              <span class="bg-rose-100 text-rose-900 px-1 py-0.5 rounded underline decoration-rose-500 underline-offset-4 decoration-2 whitespace-nowrap">The technology has changed</span> 
+              the employment landscape, and recruiters consistently prioritize candidates who possess emotional intelligence.
+            </p>
+<p>
+              In conclusion, 
+              <span class="bg-rose-100 text-rose-900 px-1 py-0.5 rounded underline decoration-rose-500 underline-offset-4 decoration-2 whitespace-nowrap">governments has focused</span> 
+              on academic scoring, but mandating unpaid service yields lifelong qualifications.
+            </p>
+</div>
+<!-- Diff View Section Preview -->
+<div class="mt-2 p-4 rounded-xl bg-surface-container-low flex flex-col gap-3">
+<span class="font-label-md text-label-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">compare_arrows</span>
+<span>So sánh đối chiếu nhanh (Quick Diff Preview)</span>
+</span>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-body-sm font-body-sm">
+<div class="p-3 rounded-lg bg-surface-container-lowest space-y-2">
+<span class="font-label-sm text-label-sm text-rose-600 block uppercase tracking-wider whitespace-nowrap">Bản gốc của bạn</span>
+<div class="line-through text-rose-600 bg-rose-50 px-2 py-1 rounded">pupils predominantly make a research</div>
+<div class="line-through text-rose-600 bg-rose-50 px-2 py-1 rounded">The technology has changed</div>
+</div>
+<div class="p-3 rounded-lg bg-surface-container-lowest space-y-2">
+<span class="font-label-sm text-label-sm text-secondary block uppercase tracking-wider whitespace-nowrap">Claude đề xuất cải thiện</span>
+<div class="text-secondary bg-secondary/10 font-medium px-2 py-1 rounded">pupils predominantly conduct research</div>
+<div class="text-secondary bg-secondary/10 font-medium px-2 py-1 rounded">Technology has transformed</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. BOTTOM SECTION: ERROR & VOCABULARY TRAYS (2 TRAYS SIDE-BY-SIDE) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+<!-- Tray 1: Lỗi phát hiện -->
+<div class="lg:col-span-6 p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-rose-500 text-[22px]">error</span>
+<h3 class="font-headline-sm text-headline-sm text-primary">Lỗi phát hiện (8)</h3>
+</div>
+<span class="text-outline font-label-sm text-label-sm whitespace-nowrap">Chọn để lưu vào Sổ tay lỗi sai</span>
+</div>
+<div class="flex flex-col space-y-2.5">
+<!-- Item 1 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="line-through text-rose-600">make a research</span>
+<span class="text-outline mx-1">→</span>
+<span class="font-bold text-on-surface">do research</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap">Collocation</span>
+<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-label-sm text-label-sm whitespace-nowrap">Đã có · lần 3</span>
+</div>
+</label>
+<!-- Item 2 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="line-through text-rose-600">the technology has changed</span>
+<span class="text-outline mx-1">→</span>
+<span class="font-bold text-on-surface">technology has changed</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap">Articles</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-sm text-label-sm whitespace-nowrap">Đã có · lần 2</span>
+</div>
+</label>
+<!-- Item 3 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="line-through text-rose-600">play an important roll</span>
+<span class="text-outline mx-1">→</span>
+<span class="font-bold text-on-surface">play an important role</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap">Spelling</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-outline font-label-sm text-label-sm whitespace-nowrap">Mới</span>
+</div>
+</label>
+<!-- Item 4 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="line-through text-rose-600">governments has focused</span>
+<span class="text-outline mx-1">→</span>
+<span class="font-bold text-on-surface">governments have focused</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap">Subject-Verb</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-sm text-label-sm whitespace-nowrap">Đã có · lần 1</span>
+</div>
+</label>
+</div>
+</div>
+</div>
+<!-- Tray 2: Từ vựng nên học -->
+<div class="lg:col-span-6 p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[22px]">auto_stories</span>
+<h3 class="font-headline-sm text-headline-sm text-primary">Từ vựng nên học (6)</h3>
+</div>
+<span class="text-outline font-label-sm text-label-sm whitespace-nowrap">Trích xuất theo Band 7.5+</span>
+</div>
+<div class="flex flex-col space-y-2.5">
+<!-- Item 1 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="font-bold text-on-surface">indispensable</span>
+<span class="text-outline font-label-sm text-label-sm mx-1">/ˌɪndɪˈspensəbl/</span>
+<span class="text-on-surface-variant">— không thể thiếu</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-secondary/15 text-secondary font-label-sm text-label-sm whitespace-nowrap">Band 7.5</span>
+<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-label-sm text-label-sm whitespace-nowrap">Đã có · lần 3</span>
+</div>
+</label>
+<!-- Item 2 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="font-bold text-on-surface">alleviate the burden</span>
+<span class="text-on-surface-variant ml-1">— giảm bớt gánh nặng</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-secondary/15 text-secondary font-label-sm text-label-sm whitespace-nowrap">Collocation C1</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-outline font-label-sm text-label-sm whitespace-nowrap">Mới</span>
+</div>
+</label>
+<!-- Item 3 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="font-bold text-on-surface">foster social cohesion</span>
+<span class="text-on-surface-variant ml-1">— vun đắp gắn kết xã hội</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-secondary/15 text-secondary font-label-sm text-label-sm whitespace-nowrap">Collocation C2</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-outline font-label-sm text-label-sm whitespace-nowrap">Mới</span>
+</div>
+</label>
+<!-- Item 4 -->
+<label class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input class="w-4 h-4 rounded text-secondary focus:ring-secondary cursor-pointer" type="checkbox"/>
+<div class="font-body-sm text-body-sm">
+<span class="font-bold text-on-surface">civic responsibility</span>
+<span class="text-on-surface-variant ml-1">— trách nhiệm công dân</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap">Topic Vocab</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-outline font-label-sm text-label-sm whitespace-nowrap">Mới</span>
+</div>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Sticky / Bottom Floating Action Bar for Selections -->
+<div class="sticky bottom-4 z-40 p-4 rounded-xl bg-primary text-white shadow-xl flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px] text-secondary-container">playlist_add_check</span>
+</div>
+<div>
+<p class="font-label-lg text-label-lg whitespace-nowrap">Đã chọn 5 mục mục tiêu</p>
+<p class="font-body-sm text-body-sm text-outline-variant whitespace-nowrap">Tự động đồng bộ vào Sổ tay lỗi sai &amp; Vocabulary Bank cá nhân</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-6 py-2.5 rounded-lg bg-secondary hover:bg-secondary/90 text-white font-label-lg text-label-lg whitespace-nowrap shadow-md transition-all" type="button">
+          Lưu đã chọn (5 mục)
+        </button>
+</div>
+</div>
+</div>
+<!-- ==================== TAB 2: IELTS SPEAKING SECTION (INTERACTIVE ACCORDION / TOGGLE VIEW) ==================== -->
+<div class="hidden flex-col space-y-6" id="speaking-tab-content">
+<!-- Speaking Control Header -->
+<div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-lowest shadow-sm">
+<div class="flex flex-wrap items-center gap-3">
+<div class="flex items-center gap-2">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">Nguồn:</span>
+<span class="px-3 py-1.5 rounded-lg bg-surface-container-low text-primary font-label-md text-label-md whitespace-nowrap font-medium">Cam 15 · Test 1 · Speaking Part 2</span>
+</div>
+<div class="h-4 w-px bg-surface-container"></div>
+<!-- Part Selector -->
+<div class="inline-flex p-1 rounded-lg bg-surface-container-low">
+<button class="px-3 py-1 rounded-md text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap" type="button">Part 1</button>
+<button class="px-3 py-1 rounded-md bg-surface-container-lowest text-primary shadow-sm font-label-sm text-label-sm whitespace-nowrap font-bold" type="button">Part 2</button>
+<button class="px-3 py-1 rounded-md text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap" type="button">Part 3</button>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-3 py-1 rounded-full bg-surface-container text-outline font-label-sm text-label-sm whitespace-nowrap">
+<span class="material-symbols-outlined text-[14px] align-middle mr-1">info</span>Có thể do nhận dạng giọng nói
+        </span>
+</div>
+</div>
+<!-- Speaking 2-Column Workspace -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<!-- Left: Cue Card & Audio Transcript Input -->
+<div class="lg:col-span-6 flex flex-col space-y-5">
+<!-- Part 2 Cue Card -->
+<div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm border-l-4 border-secondary flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-bold whitespace-nowrap">CANDIDATE CUE CARD</span>
+<span class="text-outline font-label-sm text-label-sm whitespace-nowrap">Chuẩn bị: 1 phút | Nói: 2 phút</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Describe a time when you helped someone.</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">You should say:</p>
+<ul class="space-y-1 text-on-surface-variant font-body-sm text-body-sm pl-4 list-disc">
+<li>Who you helped</li>
+<li>How you helped them</li>
+<li>Why you helped</li>
+<li>And explain how you felt about it.</li>
+</ul>
+</div>
+<!-- Speech Transcript Card -->
+<div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-primary">Bản ghi âm &amp; Transcript</span>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-white font-label-md text-label-md whitespace-nowrap shadow-sm hover:bg-secondary/90 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">mic</span>
+<span>Ghi âm → transcript</span>
+</button>
+</div>
+<div class="p-4 rounded-xl bg-surface font-body-md text-body-md text-on-surface leading-relaxed">
+            “Well, I would like to tell you about an occasion when I assisted my elderly neighbour, Mrs. Lan. About two months ago, she was carrying heavy groceries from the wet market. I noticed that she was struggling quite a bit, so I immediately offered to take her bags and accompanied her to her apartment on the fourth floor. She was extremely grateful, and I felt a profound sense of satisfaction knowing that a small deed could make her day brighter.”
+          </div>
+<div class="flex items-center justify-between text-body-sm text-outline">
+<span class="whitespace-nowrap">Thời lượng: 01:42 · 108 từ</span>
+<span class="text-secondary font-label-sm text-label-sm whitespace-nowrap">✓ Nhận diện hoàn tất</span>
+</div>
+</div>
+</div>
+<!-- Right: Claude Speaking Evaluation & Model Answer -->
+<div class="lg:col-span-6 flex flex-col space-y-5">
+<!-- Speaking Criteria Score Breakdown -->
+<div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-white shadow-sm">
+<span class="font-headline-sm text-headline-sm font-bold tracking-tight whitespace-nowrap">6.5</span>
+</div>
+<div>
+<span class="font-headline-sm text-headline-sm text-primary tracking-tight">Speaking Band 6.5</span>
+<p class="font-body-sm text-body-sm text-outline whitespace-nowrap">Pronunciation: chỉ nhận xét khi có audio trực tiếp</p>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-secondary/15 text-secondary font-label-md text-label-md whitespace-nowrap">Claude Assessment</span>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<div class="p-3 rounded-lg bg-surface-container-low flex flex-col gap-1">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">Fluency (FC)</span>
+<span class="font-headline-sm text-headline-sm text-primary">6.5</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">Lưu loát, chuyển ý tự nhiên.</p>
+</div>
+<div class="p-3 rounded-lg bg-surface-container-low flex flex-col gap-1">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">Lexical (LR)</span>
+<span class="font-headline-sm text-headline-sm text-primary">6.5</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">Từ vựng tương đối tốt.</p>
+</div>
+<div class="p-3 rounded-lg bg-surface-container-low flex flex-col gap-1">
+<span class="text-outline font-label-sm text-label-sm uppercase tracking-wider whitespace-nowrap">Grammar (GRA)</span>
+<span class="font-headline-sm text-headline-sm text-primary">6.0</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">Cấu trúc đơn giản là chính.</p>
+</div>
+</div>
+</div>
+<!-- Suggestion / Model Response Card -->
+<div class="p-6 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">psychology</span>
+<span>Câu trả lời gợi ý tốt hơn (Band 7.5+ Model Response)</span>
+</span>
+<span class="px-2 py-0.5 rounded bg-secondary/15 text-secondary font-label-sm text-label-sm whitespace-nowrap">Band 7.5+</span>
+</div>
+<div class="p-4 rounded-xl bg-surface font-body-md text-body-md text-on-surface leading-relaxed space-y-2">
+<p>
+              “I would like to recount an experience where I lent a hand to my elderly neighbour, Mrs. Lan. It was roughly two months back, and while returning from university, I chanced upon her struggling under the weight of her groceries...”
+            </p>
+<div class="pt-2 flex flex-wrap gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container text-primary font-label-sm text-label-sm whitespace-nowrap">recount an experience</span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-primary font-label-sm text-label-sm whitespace-nowrap">lent a hand</span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-primary font-label-sm text-label-sm whitespace-nowrap">chanced upon</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  function switchSkillTab(tab) {
+    var writingBtn = document.getElementById('tab-btn-writing');
+    var speakingBtn = document.getElementById('tab-btn-speaking');
+    var writingContent = document.getElementById('writing-tab-content');
+    var speakingContent = document.getElementById('speaking-tab-content');
+
+    if (tab === 'writing') {
+      writingContent.classList.remove('hidden');
+      speakingContent.classList.add('hidden');
+      
+      writingBtn.className = 'flex items-center gap-2 px-5 py-2.5 rounded-lg bg-surface-container-lowest text-primary shadow-sm font-label-lg text-label-lg whitespace-nowrap transition-all';
+      speakingBtn.className = 'flex items-center gap-2 px-5 py-2.5 rounded-lg text-on-surface-variant hover:text-primary font-label-lg text-label-lg whitespace-nowrap transition-all';
+    } else {
+      writingContent.classList.add('hidden');
+      speakingContent.classList.remove('hidden');
+      
+      speakingBtn.className = 'flex items-center gap-2 px-5 py-2.5 rounded-lg bg-surface-container-lowest text-primary shadow-sm font-label-lg text-label-lg whitespace-nowrap transition-all';
+      writingBtn.className = 'flex items-center gap-2 px-5 py-2.5 rounded-lg text-on-surface-variant hover:text-primary font-label-lg text-label-lg whitespace-nowrap transition-all';
+    }
+  }
+</script></main></div></body></html>
