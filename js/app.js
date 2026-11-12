@@ -1,5 +1,8 @@
 import { addRoute, initRouter } from "./router.js";
 import { placeholderView } from "./views/placeholder.js";
+import { dashboardView } from "./views/dashboard.js";
+import { devView } from "./views/dev.js";
+import { mountBackupControls } from "./components/backup-ui.js";
 
 const ROUTES = [
   { path: "/",                    key: "dashboard",          nav: "dashboard", title: "Dashboard" },
@@ -12,7 +15,15 @@ const ROUTES = [
   { path: "/warmup",              key: "warmup",             nav: null,        title: "Khởi động 15'" },
 ];
 
-for (const r of ROUTES) addRoute(r.path, { ...r, view: placeholderView(r.title) });
+const VIEWS = { dashboard: dashboardView };
+for (const r of ROUTES) addRoute(r.path, { ...r, view: VIEWS[r.key] ?? placeholderView(r.title) });
+
+// Dev tools exist only when the page is opened with ?dev=1 (the query comes before the #).
+if (new URLSearchParams(location.search).get("dev") === "1") {
+  addRoute("/dev", { key: "dev", nav: null, title: "Dev", view: devView });
+}
+
+mountBackupControls(document.getElementById("backup-controls"), "navy");
 
 initRouter(document.getElementById("view"), "/");
 

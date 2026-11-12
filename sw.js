@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v1";
+const CACHE_VERSION = "elh-v2";
 
 const APP_SHELL = [
   "./",
@@ -13,6 +13,15 @@ const APP_SHELL = [
   "js/app.js",
   "js/router.js",
   "js/views/placeholder.js",
+  "js/views/dashboard.js",
+  "js/components/backup-ui.js",
+  "js/services/schema.js",
+  "js/services/dedupe.js",
+  "js/services/db.js",
+  "js/services/repo.js",
+  "js/services/merge.js",
+  "js/services/backup.js",
+  "js/vendor/idb.js",
   "assets/icons/icon-192.png",
   "assets/icons/icon-512.png",
   "assets/icons/icon-maskable-512.png",
