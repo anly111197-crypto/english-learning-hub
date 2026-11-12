@@ -43,6 +43,8 @@ Test đơn vị chạy riêng: `node --test tests/*.test.js`.
 | `run-listening-m` | Luyện đề ở 390px: tab Đề/Phiếu, thanh audio còn khi sang tab Phiếu, không tràn ngang, vùng bấm ≥44px, nộp khi còn ô trống thì hỏi. Có ảnh `run-m-*.png`. |
 | `run-clock` | Luyện đề Reading: 3 Passage 13/13/14, đồng hồ 60', hết giờ khoá phiếu, tăng giới hạn thì mở khoá, hỏi khi nộp thiếu, Thoát giữ nháp. |
 | `run-writing` | Luyện đề Writing: Task 1/2 và đồng hồ 20'/40', đếm từ và cảnh báo, tự lưu vào `submissions`, tải lại không mất chữ, không tạo bản ghi trùng, Xong → modal band, attempt gắn `submissionId`, bài mới bắt đầu trống. |
+| `sync` | Đồng bộ Google Drive (Bước 7) với đăng nhập Google GIẢ và Drive GIẢ chèn vào trang (không gọi Google thật; tệp Drive giả nằm trong localStorage): chưa kết nối thì không popup, Kết nối bằng chuột thật (có user activation), backup tải xuống lần đầu, tạo tệp, token không nằm trong storage/IndexedDB/tệp, kéo, giới hạn 30 giây khi focus, đẩy sau 5 giây, mở lại tự xin token im lặng, bị từ chối thì Cần đăng nhập lại và nút Đăng nhập lại, Offline rồi online, 401, Ngắt kết nối (giữ dữ liệu), kết nối lại không tải backup thứ hai. |
+| `sync-m` | Như `sync` nhưng ở 390px: dùng thẻ ở Dashboard, hộp thoại vừa màn hình, có ảnh `sync-m-dialog.png`. |
 | `layout` | Chụp ảnh trang chủ ở 1280, 900 và 390px (`layout-d/t/m.png`). |
 | `nodev` | Vào `#/dev` khi không có `?dev=1` thì bị đưa về trang thường. |
 

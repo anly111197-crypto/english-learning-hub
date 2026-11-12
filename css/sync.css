@@ -1,0 +1,39 @@
+/* Google Drive sync status line and dialog (Step 7). Tokens only. */
+.sync-line {
+  display: flex; align-items: center; gap: var(--space-sm); width: 100%; min-height: var(--tap-min);
+  padding: 0 12px; border: 0; border-radius: var(--radius); background: transparent; color: inherit;
+  font: inherit; font-size: var(--fs-label-md); text-align: left; cursor: pointer;
+}
+.sync-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--on-navy-muted); }
+.sync-text { overflow: hidden; text-overflow: ellipsis; }
+.sync-line[data-level="ok"] .sync-dot { background: var(--fixed); }
+.sync-line[data-level="busy"] .sync-dot { background: var(--teal-400); animation: sync-pulse 1s ease-in-out infinite; }
+.sync-line[data-level="warn"] .sync-dot { background: var(--err-vocab); }
+.sync-line[data-level="warn"] .sync-text { font-weight: 700; }
+@keyframes sync-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .sync-line[data-level="busy"] .sync-dot { animation: none; } }
+
+.sync-navy:hover { background: var(--navy-hover); }
+.sync-navy:focus-visible, .sync-card:focus-visible { outline: 2px solid var(--teal-400); outline-offset: -2px; }
+
+.sync-card {
+  margin-top: var(--space-sm); padding: 0 var(--space-md); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+}
+.sync-card .sync-dot { background: var(--text-muted); }
+.sync-card[data-level="ok"] .sync-dot { background: var(--fixed); }
+.sync-card[data-level="busy"] .sync-dot { background: var(--teal-500); }
+.sync-card[data-level="warn"] .sync-dot { background: var(--err-vocab); }
+
+/* The icon-only rail (768-1023px) has no room for text: keep just the dot. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nav-foot .sync-line { justify-content: center; padding: 0; }
+  .nav-foot .sync-text { display: none; }
+}
+
+.sync-dialog { display: grid; gap: var(--space-sm); }
+.sync-dialog p { margin: 0; }
+.sync-dialog-state { font-weight: 700; }
+.sync-dialog-state[data-level="warn"] { color: var(--err-grammar); }
+.sync-dialog-error { color: var(--err-grammar); }
+.sync-dialog-note { color: var(--text-muted); font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); }

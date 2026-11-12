@@ -10,6 +10,8 @@ import { errorsView } from "./views/errors.js";
 import { warmupView } from "./views/warmup.js";
 import { initQuickCapture } from "./components/quick-capture.js";
 import { mountBackupControls } from "./components/backup-ui.js";
+import { mountSyncStatus } from "./components/sync-ui.js";
+import { initSync } from "./services/sync-controller.js";
 
 const ROUTES = [
   { path: "/",                    key: "dashboard",          nav: "dashboard", title: "Dashboard" },
@@ -59,6 +61,8 @@ if (new URLSearchParams(location.search).get("dev") === "1") {
 
 mountBackupControls(document.getElementById("backup-controls"), "navy");
 initQuickCapture();
+mountSyncStatus(document.getElementById("sync-status"), "navy");
+initSync();
 
 initRouter(document.getElementById("view"), "/");
 

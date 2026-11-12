@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v9";
+const CACHE_VERSION = "elh-v10";
 
 const APP_SHELL = [
   "./",
@@ -16,6 +16,8 @@ const APP_SHELL = [
   "css/warmup.css",
   "css/dashboard.css",
   "css/practice-run.css",
+  "css/sync.css",
+  "js/config.js",
   "js/app.js",
   "js/router.js",
   "js/views/placeholder.js",
@@ -44,12 +46,17 @@ const APP_SHELL = [
   "js/components/sheet.js",
   "js/components/band-cell.js",
   "js/components/backup-ui.js",
+  "js/components/sync-ui.js",
   "js/services/schema.js",
   "js/services/dedupe.js",
   "js/services/db.js",
   "js/services/repo.js",
   "js/services/merge.js",
   "js/services/backup.js",
+  "js/services/google-auth.js",
+  "js/services/sync-drive.js",
+  "js/services/sync-controller.js",
+  "js/services/sync-status.js",
   "js/services/bands.js",
   "js/services/progress.js",
   "js/services/next-test.js",
@@ -97,6 +104,8 @@ self.addEventListener("fetch", (event) => {
   // this computer) and Google Drive (preview frames). A blob: URL reports this site's origin, so check the scheme first.
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
   if (url.hostname === "drive.google.com" || url.hostname.endsWith(".googleusercontent.com")) return;
+  // Google sign-in and the Drive API (sync): tokens and the learner's data must never be cached.
+  if (url.hostname === "accounts.google.com" || url.hostname.endsWith(".googleapis.com") || url.hostname.endsWith(".gstatic.com")) return;
   if (url.origin !== self.location.origin) return; // fonts, Google APIs: leave to the browser
 
   event.respondWith(

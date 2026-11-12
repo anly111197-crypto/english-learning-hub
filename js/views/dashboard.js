@@ -2,6 +2,7 @@
 // Every number is computed from the tables when the page opens (spec 6.8); nothing is stored for it.
 import { h } from "../components/dom.js";
 import { mountBackupControls } from "../components/backup-ui.js";
+import { mountSyncStatus } from "../components/sync-ui.js";
 import { loadDashboardData } from "../services/practice-store.js";
 import { computeDashboard } from "../services/dashboard-stats.js";
 import { formatBand } from "../services/bands.js";
@@ -104,8 +105,10 @@ export function dashboardView(container) {
   const body = h("div", { class: "dashboard-body" }, h("p", { class: "muted" }, "Đang tải…"));
 
   const backupHost = h("div", {});
-  const backup = h("section", { class: "dashboard-backup" }, h("h2", { class: "section-label" }, "Dữ liệu"), backupHost);
+  const syncHost = h("div", {});
+  const backup = h("section", { class: "dashboard-backup" }, h("h2", { class: "section-label" }, "Dữ liệu"), backupHost, syncHost);
   mountBackupControls(backupHost, "outline");
+  mountSyncStatus(syncHost, "card");
 
   container.replaceChildren(h("h1", { class: "page-title" }, "Dashboard"), body, backup);
 

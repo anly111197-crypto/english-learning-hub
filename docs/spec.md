@@ -267,8 +267,12 @@ File `elh-data.json` (Drive appDataFolder) và `elh-backup-YYYY-MM-DD.json` cùn
 ```
 - Gộp: theo `id`, bản `updatedAt` mới hơn thắng; trùng khoá duy nhất (lemma+pos, signature) → gộp, cộng `occurrences`, nối `contexts`.
 - Xoá = `deleted: true`; dọn tombstone cũ hơn 90 ngày.
-- Đẩy lên Drive sau 5 giây không có thay đổi; kéo về khi mở app và khi tab được focus lại.
-- Trạng thái ở chân sidebar: Đã đồng bộ · x phút trước / Đang chờ / Offline / Cần đăng nhập lại.
+- Đồng bộ (Bước 7, `js/services/sync-drive.js`): mỗi vòng là kéo bản Drive → `validateBackup` → `mergeData` → ghi vào IndexedDB (một transaction, và chỉ khi dữ liệu máy không đổi từ lúc đọc, nếu đổi thì làm lại) → đẩy lên Drive nếu bản gộp khác bản Drive. Không bao giờ ghi đè mù; tệp Drive hỏng hoặc có schemaVersion mới hơn thì dừng, không ghi gì. Lỗi mạng hoặc 401 không đụng dữ liệu trên máy.
+- Lịch: kéo khi mở app và khi tab được focus lại (tối đa 1 lần mỗi 30 giây); đẩy sau 5 giây không có thay đổi (`elh:data-changed`, ngoài ra kiểm tra bản ghi mới hơn lần đồng bộ cuối khi đổi trang hoặc rời tab). Hai tab: `navigator.locks` để một vòng chạy một lúc.
+- Lần đầu trên mỗi máy: tải xuống một backup JSON của dữ liệu hiện có, rồi GỘP (không thay thế) với Drive.
+- Đăng nhập: Google Identity Services, token model, chỉ scope `drive.appdata`, Client ID ở `js/config.js` (công khai, không có client secret). Access token chỉ nằm trong bộ nhớ. LocalStorage chỉ giữ cờ `elh.sync.connected`, `elh.sync.firstBackup`, `elh.sync.lastSyncAt`. Mở app có cờ thì nạp sẵn script GIS và xin token im lặng; không được thì "Cần đăng nhập lại" kèm nút (Safari iOS chỉ cho popup khi người dùng bấm, nên `requestAccessToken` được gọi thẳng trong sự kiện click). Chưa từng kết nối thì không nạp script, không bật popup.
+- Trạng thái ở chân sidebar (điện thoại: thẻ ở Dashboard): Đã đồng bộ · x phút trước / Đang đồng bộ / Offline / Cần đăng nhập lại (chưa kết nối: Chưa kết nối Drive). Bấm vào dòng đó mở hộp thoại Kết nối Google Drive / Đồng bộ ngay / Ngắt kết nối (ngắt chỉ xoá cờ và thu hồi token, không xoá dữ liệu trên máy lẫn trên Drive).
+- Service worker không cache `accounts.google.com`, `*.googleapis.com`, `*.gstatic.com`.
 - Import tự tạo backup hiện tại trước; có 2 chế độ Thay thế / Gộp.
 - File không bao giờ chứa API key hay access code.
 

@@ -2,7 +2,7 @@
 // Needs a static server on http://localhost:8765/ and Chrome (set CHROME_PATH if it is not in the default place).
 // See tests/e2e/README.md. Not part of the app: never list it in APP_SHELL.
 import { spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -1523,6 +1523,178 @@ try {
       await sleep(700);
       ok("a new piece starts blank after 'Xong'", (await evalJs(`document.querySelector('#w-text').value`)) === "");
     }
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
+  } else if (scenario === "sync" || scenario === "sync-m") {
+    // Google Drive sync (step 7) against a FAKE Google sign-in and a FAKE Drive (both injected into the page; the real
+    // Google is never contacted). The fake Drive file lives in localStorage so it survives reloads, like a remote copy.
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const FAKE = `(() => {
+      const L = localStorage;
+      window.__tokenRequests = []; window.__userActive = []; window.__driveCalls = [];
+      window.google = { accounts: { oauth2: {
+        initTokenClient(cfg) { return { requestAccessToken(o) {
+          __tokenRequests.push(o); __userActive.push(navigator.userActivation.isActive);
+          setTimeout(() => { if (L.getItem('__gisMode') === 'fail') cfg.error_callback({ type: 'popup_failed_to_open' }); else cfg.callback({ access_token: 'FAKE-TOKEN', expires_in: 3600 }); }, 20);
+        } }; },
+        hasGrantedAllScopes: () => true,
+        revoke(t, cb) { window.__revoked = t; cb && cb(); } } } };
+      const realFetch = window.fetch.bind(window);
+      window.fetch = async (url, init = {}) => {
+        const u = new URL(url, location.href);
+        if (u.hostname !== 'www.googleapis.com') return realFetch(url, init);
+        __driveCalls.push((init.method || 'GET') + ' ' + u.pathname);
+        const mode = L.getItem('__fakeMode') || 'ok';
+        if (mode === 'offline') throw new TypeError('Failed to fetch');
+        if (mode === '401' || !init.headers || init.headers.Authorization !== 'Bearer FAKE-TOKEN') return new Response('', { status: 401 });
+        const file = JSON.parse(L.getItem('__fakeFile') || 'null');
+        const reply = (o) => new Response(JSON.stringify(o), { status: 200 });
+        if (u.pathname === '/drive/v3/files' && !init.method) return reply({ files: file ? [{ id: 'F1', createdTime: file.createdTime }] : [] });
+        if (u.pathname === '/drive/v3/files/F1' && !init.method) return file ? new Response(file.content) : new Response('', { status: 404 });
+        if (u.pathname === '/upload/drive/v3/files/F1' && init.method === 'PATCH') { file.content = init.body; L.setItem('__fakeFile', JSON.stringify(file)); return reply({ id: 'F1' }); }
+        if (u.pathname === '/upload/drive/v3/files' && init.method === 'POST') {
+          const parts = init.body.split(/--[^\\r\\n]+/).filter((p) => p.includes('Content-Type'));
+          L.setItem('__fakeFile', JSON.stringify({ createdTime: new Date().toISOString(), content: parts[1].split('\\r\\n\\r\\n')[1].trim() }));
+          return reply({ id: 'F1' });
+        }
+        return new Response('', { status: 400 });
+      };
+    })();`;
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: FAKE });
+    const mobile = scenario === "sync-m";
+    const [W, H] = mobile ? [390, 844] : [1280, 800];
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.textContent ?? null`);
+    const statusSel = mobile ? ".dashboard-backup .sync-text" : "#sync-status .sync-text";
+    const lineSel = mobile ? ".dashboard-backup .sync-line" : "#sync-status .sync-line";
+    const status = () => text(statusSel);
+    const waitStatus = (starts, ms = 12000) => waitFor(`document.querySelector(${JSON.stringify(statusSel)})?.textContent.startsWith(${JSON.stringify(starts)})`, ms);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+    };
+    const dlgBtn = (label) => ev(`(() => { const b = [...document.querySelectorAll('dialog[open] button')].filter((x) => x.textContent.trim() === ${JSON.stringify(label)}).at(-1); if (!b) return null; document.querySelectorAll('[data-e2e]').forEach((x) => delete x.dataset.e2e); b.dataset.e2e = 'x'; return 'dialog[open] button[data-e2e=x]'; })()`);
+    const clickBtn = async (label) => { const sel = await dlgBtn(label); if (!sel) throw new Error("no dialog button " + label); await realClick(sel); await sleep(300); };
+    const closeDialogs = () => ev(`document.querySelectorAll('dialog[open]').forEach((d) => d.close())`);
+    const dbAll = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; })`);
+    const putVocab = (rec) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction('vocab', 'readwrite'); tx.objectStore('vocab').put(${JSON.stringify(rec)}); tx.oncomplete = () => res(true); }; })`);
+    const driveFile = () => ev(`JSON.parse(localStorage.getItem('__fakeFile') || 'null')`);
+    const driveVocab = async () => { const f = await driveFile(); return f ? JSON.parse(f.content).data.vocab.map((v) => v.lemma) : null; };
+    const reopen = async () => { await send("Page.reload"); await sleep(1300); };
+    const now = () => new Date().toISOString();
+    const vocabRec = (id, lemma) => ({ id, word: lemma, lemma, pos: "n", meaningVi: "thử", box: 1, nextReview: "2026-01-01", lapses: 0, contexts: [], createdAt: now(), updatedAt: now(), deleted: false });
+    const backups = () => readdirSync(dlDir).filter((f) => f.startsWith("elh-backup-"));
+    for (const f of backups()) unlinkSync(join(dlDir, f)); // a stale file of the same name would hide a missing download
+
+    // Local data exists first (sample data), so the first-sync backup has something to protect.
+    await go(BASE + "?dev=1#/dev", W, H);
+    await waitFor(`document.querySelector('[data-act=seed]')`);
+    await ev(`document.querySelector('[data-act=seed]').click()`);
+    await sleep(1500);
+    const seeded = (await dbAll("vocab")).length;
+    await go(BASE + "#/", W, H);
+    await sleep(800);
+
+    ok("not connected: status line says 'Chưa kết nối Drive'", (await status()) === "Chưa kết nối Drive", String(await status()));
+    ok("not connected: no sign-in was requested and no Drive call was made (no popup by itself)", (await ev(`__tokenRequests.length === 0 && __driveCalls.length === 0`)));
+    ok("the status line is visible and at least 44px tall", await ev(`(() => { const b = document.querySelector(${JSON.stringify(lineSel)}).getBoundingClientRect(); return b.width > 0 && b.height >= 44; })()`), mobile ? "dashboard card" : "sidebar");
+    await realClick(lineSel);
+    ok("clicking the status line opens the dialog with 'Kết nối Google Drive' enabled", await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000) && (await dlgBtn("Kết nối Google Drive")) !== null && !(await ev(`document.querySelector('dialog[open] .btn-primary').disabled`)));
+    ok("dialog text has no stray 'null'", !(await text("dialog[open] .sync-dialog")).includes("null"));
+    if (mobile) { await shot("sync-m-dialog.png"); ok("dialog fits the phone width", await ev(`(() => { const r = document.querySelector('dialog[open]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; })()`)); }
+
+    // Connect: a REAL mouse click, so the page has user activation when requestAccessToken runs.
+    await clickBtn("Kết nối Google Drive");
+    ok("connect called requestAccessToken once, inside the click (user activation active)", (await ev(`__tokenRequests.length === 1 && __userActive[0] === true`)));
+    ok("sync finished: 'Đã đồng bộ'", await waitStatus("Đã đồng bộ"), await status());
+    ok("first sync downloaded a backup JSON before merging", backups().length === 1, backups().join(","));
+    ok("Drive file created with the local words", (await driveVocab())?.length === seeded, `${(await driveVocab())?.length} / ${seeded}`);
+    ok("flag 'connected' is in localStorage; the token is nowhere in storage, the Drive file or IndexedDB", await ev(`(async () => {
+      const all = JSON.stringify(Object.fromEntries(Object.entries(localStorage).filter(([k]) => !k.startsWith('__fake'))));
+      const idb = JSON.stringify(await new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const out = {}; const names = [...r.result.objectStoreNames]; let n = 0; names.forEach(s => { const q = r.result.transaction(s).objectStore(s).getAll(); q.onsuccess = () => { out[s] = q.result; if (++n === names.length) res(out); }; }); }; }));
+      return localStorage.getItem('elh.sync.connected') === '1' && !all.includes('FAKE-TOKEN') && !idb.includes('FAKE-TOKEN') && !localStorage.getItem('__fakeFile').includes('FAKE-TOKEN');
+    })()`));
+    ok("dialog now offers 'Đồng bộ ngay' and 'Ngắt kết nối'", (await dlgBtn("Đồng bộ ngay")) !== null && (await dlgBtn("Ngắt kết nối")) !== null);
+
+    // A word added on "another machine" (written straight into the fake Drive), pulled by 'Đồng bộ ngay'.
+    await ev(`(() => { const f = JSON.parse(localStorage.getItem('__fakeFile')); const j = JSON.parse(f.content); j.data.vocab.push(${JSON.stringify(vocabRec("remote-1", "zephyr"))}); f.content = JSON.stringify(j); localStorage.setItem('__fakeFile', JSON.stringify(f)); })()`);
+    await clickBtn("Đồng bộ ngay");
+    ok("pull: the remote word appears locally", await waitFor(`(async () => { const r = await new Promise(res => { const q = indexedDB.open('elh'); q.onsuccess = () => { const g = q.result.transaction('vocab').objectStore('vocab').getAll(); g.onsuccess = () => res(g.result); }; }); return r.some(v => v.lemma === 'zephyr'); })()`, 6000));
+    await closeDialogs();
+    const callsBefore = await ev(`__driveCalls.length`);
+    await ev(`window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange'))`);
+    await sleep(800);
+    ok("tab focus within 30 s of the last sync does not pull again", (await ev(`__driveCalls.length`)) === callsBefore);
+
+    // Push after 5 s of quiet.
+    await putVocab(vocabRec("local-1", "quokka"));
+    await ev(`document.dispatchEvent(new CustomEvent('elh:data-changed'))`);
+    await sleep(2500);
+    ok("push waits: not on Drive after 2.5 s", !(await driveVocab()).includes("quokka"));
+    ok("push: on Drive within about 5 s of quiet", await waitFor(`JSON.parse(JSON.parse(localStorage.getItem('__fakeFile')).content).data.vocab.some(v => v.lemma === 'quokka')`, 7000));
+    ok("pushing did not wipe the word that came from the other machine", (await driveVocab()).includes("zephyr"));
+
+    // Reopen: flag set -> silent token request without a click.
+    await reopen();
+    ok("reopen with the flag: asks for a token by itself (no user activation) and syncs", await waitStatus("Đã đồng bộ") && (await ev(`__tokenRequests.length === 1 && __userActive[0] === false`)), await status());
+
+    // Silent sign-in refused (Safari-like): "Cần đăng nhập lại" + a button.
+    await ev(`localStorage.setItem('__gisMode', 'fail')`);
+    await reopen();
+    ok("silent sign-in refused -> 'Cần đăng nhập lại'", await waitStatus("Cần đăng nhập lại"), await status());
+    ok("local data is untouched while signed out", (await dbAll("vocab")).length === seeded + 2);
+    await realClick(lineSel);
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    ok("dialog shows 'Đăng nhập lại' and no 'Đồng bộ ngay' enabled", (await dlgBtn("Đăng nhập lại")) !== null && (await ev(`[...document.querySelectorAll('dialog[open] button')].find(b => b.textContent.trim() === 'Đồng bộ ngay').disabled`)));
+    await ev(`localStorage.setItem('__gisMode', 'ok')`);
+    const reqBefore = await ev(`__tokenRequests.length`);
+    await clickBtn("Đăng nhập lại");
+    ok("'Đăng nhập lại' requests a token inside the click and syncs", (await ev(`__userActive[__userActive.length - 1] === true && __tokenRequests.length === ${reqBefore} + 1`)) && (await waitStatus("Đã đồng bộ")), await status());
+    await closeDialogs();
+
+    // Offline, then back online.
+    await ev(`localStorage.setItem('__fakeMode', 'offline')`);
+    await ev(`document.dispatchEvent(new CustomEvent('elh:data-changed'))`);
+    await realClick(lineSel);
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Đồng bộ ngay");
+    ok("network error -> 'Offline', local data kept", (await waitStatus("Offline", 5000)) && (await dbAll("vocab")).length === seeded + 2, await status());
+    await ev(`localStorage.setItem('__fakeMode', 'ok')`);
+    await ev(`window.dispatchEvent(new Event('online'))`);
+    ok("browser 'online' event retries and recovers", await waitStatus("Đã đồng bộ", 8000), await status());
+
+    // 401 from Drive
+    await ev(`localStorage.setItem('__fakeMode', '401')`);
+    await clickBtn("Đồng bộ ngay");
+    ok("401 -> 'Cần đăng nhập lại', local data kept", (await waitStatus("Cần đăng nhập lại", 5000)) && (await dbAll("vocab")).length === seeded + 2, await status());
+    await ev(`localStorage.setItem('__fakeMode', 'ok')`);
+    await closeDialogs();
+    await reopen();
+    await waitStatus("Đã đồng bộ");
+
+    // Disconnect: token revoked, flag gone, data stays (here and on Drive); reconnect does not download another backup.
+    await realClick(lineSel);
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Ngắt kết nối");
+    ok("disconnect asks for confirmation", await waitFor(`document.querySelectorAll('dialog[open]').length === 2`, 2000));
+    await clickBtn("Ngắt kết nối"); // the LAST match is the confirm button of the second dialog
+    await sleep(600);
+    ok("disconnect: status 'Chưa kết nối Drive', flag removed", (await status()) === "Chưa kết nối Drive" && (await ev(`localStorage.getItem('elh.sync.connected')`)) === null, await status());
+    ok("disconnect: nothing was deleted (local words and the Drive file are still there)", (await dbAll("vocab")).length === seeded + 2 && (await driveVocab()).length === seeded + 2);
+    await closeDialogs();
+    for (const f of backups()) unlinkSync(join(dlDir, f));
+    await reopen();
+    await sleep(800);
+    ok("after reopening disconnected: still no sign-in request", (await ev(`__tokenRequests.length === 0`)));
+    await realClick(lineSel);
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Kết nối Google Drive");
+    ok("reconnect works and does not download a second backup", (await waitStatus("Đã đồng bộ")) && backups().length === 0, await status());
+    if (!mobile) await shot("sync-d.png");
+
+    const syncWarn = consoleMsgs.filter((m) => m.startsWith("warning: sync:"));
+    for (let i = consoleMsgs.length - 1; i >= 0; i--) if (syncWarn.includes(consoleMsgs[i])) consoleMsgs.splice(i, 1);
+    console.log(`(expected sync warnings ignored: ${syncWarn.length})`);
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
   } else if (scenario === "layout") {
     for (const [w, h, n] of [[1280, 800, "d"], [900, 800, "t"], [390, 800, "m"]]) {
