@@ -3,6 +3,7 @@ import { h, autoGrow, formatDateVi } from "../components/dom.js";
 import { speakButton } from "../components/speech.js";
 import { POS_OPTIONS, sourceLabel } from "../services/taxonomy.js";
 import { splitLines, splitList } from "../services/vocab-ops.js";
+import { notesBlock } from "../components/notes-block.js";
 
 const field = (label, el, id, hint) => h("div", { class: "field" },
   h("label", { class: "field-label", for: id }, label), el, hint ? h("p", { class: "form-hint" }, hint) : null);
@@ -20,9 +21,9 @@ function appearances(occurrences) {
   return [...groups.values()];
 }
 
-// ctx: { word, occurrences, topics }
+// ctx: { word, occurrences, topics, notes, notebooks }
 // on:  { save(fields) -> { conflict? }, merge(conflictId), remove() }
-export function buildVocabDetail({ word, occurrences, topics }, on) {
+export function buildVocabDetail({ word, occurrences, topics, notes = [], notebooks = [] }, on) {
   const inputs = {
     word: h("input", { id: "vd-word", class: "input", type: "text", value: word.word ?? "", autocomplete: "off" }),
     lemma: h("input", { id: "vd-lemma", class: "input", type: "text", value: word.lemma ?? "", autocomplete: "off", autocapitalize: "none" }),
@@ -102,6 +103,7 @@ export function buildVocabDetail({ word, occurrences, topics }, on) {
     form,
     h("h3", { class: "section-label" }, "Ngữ cảnh đã ghi"), contexts,
     h("h3", { class: "section-label" }, "Xuất hiện trong"), appears,
+    notesBlock(notes, notebooks),
     h("h3", { class: "section-label" }, "Ôn tập (Leitner)"),
     h("p", {}, `Hộp ${word.box} / 5 · ôn lần tới: `, h("strong", { class: "nowrap" }, word.nextReview ? formatDateVi(word.nextReview) : "chưa có")),
     h("p", { class: "muted" }, `Ôn lần gần nhất: ${word.lastReviewedAt ? formatDateVi(word.lastReviewedAt) : "chưa có"} · Số lần quên: ${word.lapses ?? 0}`));

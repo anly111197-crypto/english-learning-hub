@@ -16,6 +16,15 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
+// A small inline SVG icon from the sprite in index.html. Returns a span (h() cannot make SVG elements).
+export function icon(id, className = "") {
+  const span = document.createElement("span");
+  span.className = `icon-wrap ${className}`.trim();
+  span.setAttribute("aria-hidden", "true");
+  span.innerHTML = `<svg class="icon"><use href="#${id}"/></svg>`;
+  return span;
+}
+
 export function autoGrow(textarea) {
   const fit = () => {
     textarea.style.height = "auto";

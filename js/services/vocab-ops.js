@@ -2,10 +2,11 @@
 import { list, get, put, query, softDelete } from "./repo.js";
 import { lemmaPosKey, normalizeText, unionStrings, addContext } from "./dedupe.js";
 import { isoDate, nextReviewDate } from "./leitner.js";
+import { repointNoteLinks } from "./notebook-ops.js";
 
 export async function loadVocabData() {
-  const [vocab, occurrences] = await Promise.all([list("vocab"), list("occurrences")]);
-  return { vocab, occurrences: occurrences.filter((o) => o.itemType === "vocab") };
+  const [vocab, occurrences, notes, notebooks] = await Promise.all([list("vocab"), list("occurrences"), list("notes"), list("notebooks")]);
+  return { vocab, occurrences: occurrences.filter((o) => o.itemType === "vocab"), notes, notebooks };
 }
 
 const splitLines = (text) => String(text ?? "").split(/\r?\n|;/).map((s) => s.trim()).filter(Boolean);
@@ -68,6 +69,7 @@ export async function mergeVocab(keepId, dropId) {
   for (const occ of await query("occurrences", "itemId", dropId)) {
     await put("occurrences", { ...occ, itemId: keepId });
   }
+  await repointNoteLinks("vocab", dropId, keepId);
   await softDelete("vocab", dropId);
   return merged;
 }

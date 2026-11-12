@@ -13,6 +13,7 @@ import { loadPracticeData, setPinned } from "../services/practice-store.js";
 import { buildDetail } from "./practice-detail.js";
 import { openResultModal, openLinksModal } from "./practice-forms.js";
 import { openQuickCapture } from "../components/quick-capture.js";
+import { notesFor } from "../services/notebook-ops.js";
 
 const state = {
   active: false,
@@ -238,7 +239,10 @@ function syncPanel() {
   const isNext = state.next?.book === book && state.next?.test === test;
   const reload = async () => { await refresh(); };
 
-  const detail = buildDetail({ book, test, entry, testRec, isNext, items: itemsFor(book, test) }, {
+  const detail = buildDetail({
+    book, test, entry, testRec, isNext, items: itemsFor(book, test),
+    notes: notesFor(state.data.notes ?? [], "test", key), notebooks: state.data.notebooks ?? [],
+  }, {
     quickCapture: () => openQuickCapture({ source: { book, test } }),
     edit: (skill, task) => openResultModal({ book, test, skill, task: task ?? 2, entry, onSaved: reload }),
     enterResults: () => {

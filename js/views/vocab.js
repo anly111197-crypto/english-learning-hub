@@ -14,6 +14,7 @@ import { BOOKS } from "../services/progress.js";
 import { vocabCsv } from "../services/csv.js";
 import { loadVocabData, updateVocab, mergeVocab, markLearned, deleteVocab, findConflict } from "../services/vocab-ops.js";
 import { buildVocabDetail } from "./vocab-detail.js";
+import { notesFor } from "../services/notebook-ops.js";
 
 const NO_TOPIC = "__none";
 const phone = window.matchMedia("(max-width: 767px)");
@@ -257,7 +258,10 @@ function panelContext(id) {
   const word = state.data.vocab.find((w) => w.id === id);
   if (!word) return null;
   return buildVocabDetail(
-    { word, occurrences: state.data.occurrences.filter((o) => o.itemId === id), topics: topicsList() },
+    {
+      word, occurrences: state.data.occurrences.filter((o) => o.itemId === id), topics: topicsList(),
+      notes: notesFor(state.data.notes ?? [], "vocab", id), notebooks: state.data.notebooks ?? [],
+    },
     {
       async save(fields) {
         const conflict = await findConflict(id, { lemma: fields.lemma || fields.word, pos: fields.pos });

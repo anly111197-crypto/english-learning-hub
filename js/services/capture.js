@@ -2,6 +2,7 @@
 import { list, put } from "./repo.js";
 import { matchVocab, addContext, findErrorDuplicate, normalizeText } from "./dedupe.js";
 import { isoDate, addDays } from "./leitner.js";
+import { statusAfterRecurrence } from "./errors.js";
 
 export class CaptureError extends Error {
   constructor(message) {
@@ -84,6 +85,9 @@ export async function saveError({ original, corrected = "", type = "", source = 
       lastSeen: today,
       corrected: dup.corrected || right,
       type: dup.type || type,
+      // fixed + written down again -> "recurring" (spec 6.4)
+      status: statusAfterRecurrence(dup.status),
+      warmupStreak: dup.status === "fixed" ? 0 : dup.warmupStreak ?? 0,
     });
   } else {
     saved = await put("errors", {

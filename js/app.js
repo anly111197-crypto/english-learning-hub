@@ -5,6 +5,7 @@ import { devView } from "./views/dev.js";
 import { practiceView } from "./views/practice.js";
 import { practiceNotebooksView } from "./views/practice-notebooks.js";
 import { vocabView } from "./views/vocab.js";
+import { errorsView } from "./views/errors.js";
 import { initQuickCapture } from "./components/quick-capture.js";
 import { mountBackupControls } from "./components/backup-ui.js";
 
@@ -24,6 +25,7 @@ const VIEWS = {
   practice: practiceView,
   "practice-notebooks": practiceNotebooksView,
   vocab: vocabView,
+  errors: errorsView,
 };
 for (const r of ROUTES) addRoute(r.path, { ...r, view: VIEWS[r.key] ?? placeholderView(r.title) });
 

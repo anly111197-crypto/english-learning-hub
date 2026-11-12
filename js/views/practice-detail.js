@@ -5,6 +5,7 @@ import { formatBand } from "../services/bands.js";
 import { testSummary } from "../services/progress.js";
 import { isHttpsUrl } from "../services/practice-store.js";
 import { errorTypeLabel, SKILL_LABELS, partLabel } from "../services/taxonomy.js";
+import { notesBlock } from "../components/notes-block.js";
 
 const ROWS = [
   { skill: "L", task: null, label: "Listening", att: (e) => e?.L },
@@ -90,7 +91,7 @@ function itemsBlock(items, onCapture) {
 // ctx: { book, test, entry, testRec, isNext, items }
 // on:  { edit(skill, task), enterResults(), togglePin(), editLinks(), quickCapture() }
 export function buildDetail(ctx, on) {
-  const { book, test, entry, testRec, isNext, items } = ctx;
+  const { book, test, entry, testRec, isNext, items, notes = [], notebooks = [] } = ctx;
   const summary = testSummary(entry);
   const pinned = Boolean(testRec?.pinned);
 
@@ -107,7 +108,8 @@ export function buildDetail(ctx, on) {
     h("h3", { class: "section-label" }, "Đề và audio của bạn"),
     linksBlock(testRec) ?? h("p", { class: "muted" }, "Chưa có link."),
     h("button", { type: "button", class: "btn btn-text btn-sm", onClick: on.editLinks }, "Sửa link"),
-    itemsBlock(items ?? { vocab: [], errors: [] }, on.quickCapture));
+    itemsBlock(items ?? { vocab: [], errors: [] }, on.quickCapture),
+    notesBlock(notes, notebooks));
 
   return {
     title: `Cam ${book} · Test ${test}`,
