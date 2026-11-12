@@ -17,6 +17,11 @@ const WORDS = [
   ["Foster", "verb", "thúc đẩy", "/ˈfɒstə/", 1],
 ];
 
+// Collocations for the box-5 word (so the "type from a collocation" exercise can appear), and one box-4 word
+// without a meaning (it must fall back to a flashcard).
+const COLLOCATIONS = { substantial: ["a substantial increase", "substantial evidence"], mitigate: ["mitigate the impact", "mitigate risks"] };
+const NO_MEANING = new Set(["viable"]);
+
 const ERRORS = [
   ["articles:zero-article-uncountable", "articles", "the technology has changed", "technology has changed", 3],
   ["collocation:make-research→do-research", "collocations", "make a research", "do research", 2],
@@ -33,8 +38,8 @@ const ATTEMPTS = [
 export async function createSampleData() {
   for (const [i, [word, pos, meaningVi, ipa, box]] of WORDS.entries()) {
     await put("vocab", {
-      word, lemma: word.toLowerCase(), pos, ipa, meaningVi, definitionEn: "", topic: "environment",
-      collocations: [], synonyms: [], box, nextReview: day(box - 2), lapses: 0, enriched: i % 2 === 0,
+      word, lemma: word.toLowerCase(), pos, ipa, meaningVi: NO_MEANING.has(word) ? "" : meaningVi, definitionEn: "", topic: "environment",
+      collocations: COLLOCATIONS[word] ?? [], synonyms: [], box, nextReview: day(box - 2), lapses: 0, enriched: i % 2 === 0,
       contexts: [{ sentence: `Sample sentence ${i + 1} using ${word}.`, source: src(15, (i % 3) + 1, "R", 2), date: day(-i) }],
     });
   }

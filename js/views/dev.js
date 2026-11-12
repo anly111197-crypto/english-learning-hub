@@ -1,6 +1,7 @@
 // Dev tools, reachable only with ?dev=1 (route registered in app.js).
 import { STORE_NAMES } from "../services/schema.js";
 import { exportRaw, clearAll, put, softDelete, list, RepoError } from "../services/repo.js";
+import { isoDate } from "../services/leitner.js";
 import { buildBackup, importData } from "../services/backup.js";
 import { BackupError } from "../services/merge.js";
 import { createSampleData } from "../dev/sample-data.js";
@@ -68,6 +69,7 @@ export function devView(container) {
     <p class="page-sub">Chỉ hiện khi URL có ?dev=1. Dữ liệu mẫu chỉ để thử nghiệm.</p>
     <div class="dev-actions">
       <button class="btn btn-primary" data-act="seed">Tạo dữ liệu mẫu</button>
+      <button class="btn btn-outline" data-act="due">Đặt mọi từ đến hạn hôm nay</button>
       <button class="btn btn-outline" data-act="check">Chạy kiểm tra khứ hồi</button>
       <button class="btn btn-danger" data-act="wipe">Xoá toàn bộ dữ liệu</button>
     </div>
@@ -100,6 +102,11 @@ export function devView(container) {
   container.querySelector('[data-act="seed"]').addEventListener("click", () => run(async () => {
     await clearAll();
     await createSampleData();
+  }));
+  container.querySelector('[data-act="due"]').addEventListener("click", () => run(async () => {
+    const today = isoDate();
+    for (const w of await list("vocab")) await put("vocab", { ...w, nextReview: today });
+    log(`Đã đặt nextReview = ${today} cho mọi từ.`);
   }));
   container.querySelector('[data-act="wipe"]').addEventListener("click", () => run(async () => {
     if (confirm("Xoá toàn bộ dữ liệu trong máy này? Không thể hoàn tác (hãy sao lưu trước).")) await clearAll();

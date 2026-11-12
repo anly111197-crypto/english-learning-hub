@@ -390,8 +390,7 @@ export const vocabView = {
     state.refs.stats = h("p", { class: "vocab-stats" }, "Đang tải…");
     state.refs.list = h("div", { class: "vocab-list" });
     state.refs.bulk = h("div", { class: "bulk-bar", hidden: true });
-    state.refs.review = h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 5" },
-      "Ôn ngay (0 đến hạn)", h("span", { class: "btn-note" }, "Có ở Bước 5"));
+    state.refs.review = h("a", { class: "btn btn-outline", href: "#/warmup" }, "Ôn ngay (0 đến hạn)");
 
     container.replaceChildren(h("div", { class: "vocab" },
       h("div", { class: "vocab-head" },

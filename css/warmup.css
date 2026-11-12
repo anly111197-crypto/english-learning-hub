@@ -1,0 +1,130 @@
+/* The 15-minute warm-up (#/warmup). Full screen: the sidebar, tab bar and FAB are hidden by layout.css.
+   Colors come from tokens.css only. */
+
+body[data-route="warmup"] .view { padding: 0 0 var(--space-xl); max-width: none; }
+
+.wu { min-height: 100dvh; background: var(--bg); }
+.kbd {
+  display: inline-block; padding: 1px 6px; border: 1px solid currentColor; border-radius: var(--radius-sm);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: var(--fs-label-sm); font-weight: 600; line-height: 14px;
+  opacity: 0.8; white-space: nowrap;
+}
+.muted { color: var(--text-muted); }
+
+/* ---- Header: Exit, steps, clock, progress, Skip ---- */
+.wu-header {
+  position: sticky; top: 0; z-index: 10;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm) var(--space-md);
+  padding: var(--space-sm) var(--space-lg); background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.wu-exit { justify-self: start; }
+.wu-steps { display: flex; justify-content: center; gap: var(--space-xs); padding: 3px; margin: 0 auto; border-radius: 9999px; background: var(--band-empty); list-style: none; }
+.wu-step { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; font-size: var(--fs-label-lg); font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.wu-step[aria-current="step"] { background: var(--surface); color: var(--navy-900); box-shadow: 0 0 0 1px var(--border); }
+.wu-step[data-done="true"] { color: var(--navy-900); }
+.wu-step-icon { color: var(--fixed); }
+.wu-meta { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-md); min-width: 0; }
+.wu-clock-wrap { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: var(--bg); font-weight: 700; font-variant-numeric: tabular-nums; }
+.wu-clock[data-low="true"] { color: var(--err-grammar); }
+.wu-progress { padding: 4px 10px; border-radius: 9999px; background: var(--band-empty); color: var(--navy-900); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---- Content ---- */
+.wu-main { width: min(840px, 100%); margin: 0 auto; padding: var(--space-lg) var(--space-lg) var(--space-xl); display: flex; flex-direction: column; gap: var(--space-md); }
+.wu-card { padding: var(--space-lg); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); display: flex; flex-direction: column; gap: var(--space-md); }
+.wu-tag { font-size: var(--fs-label-md); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--teal-500); }
+.wu-tag-small { font-size: var(--fs-label-md); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.wu-title { font-size: var(--fs-headline-md); line-height: var(--lh-headline-md); font-weight: 700; color: var(--navy-900); }
+.wu-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.wu-word { font-size: var(--fs-headline-xl); line-height: var(--lh-headline-xl); font-weight: 800; letter-spacing: -0.02em; color: var(--navy-900); overflow-wrap: anywhere; }
+.wu-ipa { margin-top: calc(var(--space-sm) * -1); }
+.wu-prompt { font-size: var(--fs-body-lg); line-height: var(--lh-body-lg); }
+.wu-meaning { font-size: var(--fs-headline-md); line-height: var(--lh-headline-md); font-weight: 700; color: var(--navy-900); }
+.wu-meaning-box { padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg); text-align: center; }
+.wu-back { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg); }
+.wu-context { margin: 0; padding: var(--space-md); border-left: 4px solid var(--teal-500); border-radius: 0 var(--radius-md) var(--radius-md) 0; background: var(--bg); font-size: var(--fs-body-lg); line-height: var(--lh-body-lg); overflow-wrap: anywhere; }
+.wu-context footer { margin-top: var(--space-xs); font-size: var(--fs-body-sm); }
+.wu-mark { padding: 0 6px; border-radius: var(--radius-sm); background: var(--band-high); color: var(--on-band-high); font-weight: 700; }
+.wu-blank { display: inline-block; min-width: 96px; margin: 0 4px; border-bottom: 3px solid var(--navy-700); text-align: center; color: var(--text-muted); letter-spacing: 2px; }
+.wu-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+.wu-colloc { padding: 2px 10px; border-radius: 9999px; background: var(--band-empty); font-size: var(--fs-label-lg); font-weight: 600; color: var(--navy-900); }
+.wu-explain { display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg); }
+
+/* flashcard rating */
+.wu-rates { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-sm); }
+.wu-rate { border-color: var(--border); background: var(--surface); }
+.wu-rate-forgot { color: var(--err-grammar); border-color: var(--err-grammar); }
+.wu-rate-vague { color: var(--navy-900); }
+.wu-rate-good { background: var(--navy-700); border-color: var(--navy-700); color: var(--surface); }
+.wu-rate[disabled] { opacity: 0.5; }
+
+/* choice */
+.wu-options { display: flex; flex-direction: column; gap: var(--space-sm); }
+.wu-option {
+  display: flex; align-items: center; gap: var(--space-md); width: 100%; min-height: 56px; padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); text-align: left;
+  transition: border-color var(--transition), background var(--transition);
+}
+.wu-option:not([disabled]):hover { border-color: var(--teal-500); }
+.wu-letter { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--radius); background: var(--band-empty); font-weight: 700; color: var(--navy-900); }
+.wu-option-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.wu-option .kbd { margin-left: auto; }
+.wu-option.is-correct { background: var(--band-high); border-color: var(--band-high); color: var(--on-band-high); }
+.wu-option.is-correct .wu-letter { background: var(--navy-900); color: var(--surface); }
+.wu-option.is-wrong { background: var(--err-grammar); border-color: var(--err-grammar); color: var(--surface); }
+.wu-option.is-wrong .wu-letter { background: var(--surface); color: var(--err-grammar); }
+.wu-option[disabled] { cursor: default; }
+
+/* typed answers */
+.wu-hint { padding: var(--space-sm) var(--space-md); border-radius: var(--radius); background: var(--bg); }
+.wu-hint-letters { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 700; letter-spacing: 2px; color: var(--navy-900); white-space: pre-wrap; }
+.wu-input-row { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.wu-input { flex: 1 1 220px; min-width: 0; font-size: var(--fs-body-lg); }
+.wu-hint-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-sm); }
+
+/* feedback after an answer */
+.wu-after { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md); }
+.wu-feedback { display: inline-flex; align-items: center; gap: var(--space-sm); font-weight: 700; }
+.wu-feedback[data-outcome="correct"] { color: var(--navy-900); }
+.wu-feedback[data-outcome="correct"] .wu-fb-icon { color: var(--fixed); }
+.wu-feedback[data-outcome="near"] .wu-fb-icon { color: var(--err-vocab); }
+.wu-feedback[data-outcome="wrong"] { color: var(--err-grammar); }
+
+/* grammar step */
+.wu-wrong-box { padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg); display: flex; flex-direction: column; gap: var(--space-xs); }
+.wu-wrong-sentence, .wu-correct { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--fs-body-lg); line-height: var(--lh-body-lg); overflow-wrap: anywhere; }
+.wu-wrong-sentence .wu-fb-icon { color: var(--err-grammar); }
+.wu-correct .wu-fb-icon { color: var(--fixed); }
+.wu-answer { font-size: var(--fs-body-lg); }
+.wu-answer-reveal { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg); }
+.wu-self { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.wu-self-label { font-weight: 700; margin-right: auto; }
+.wu-wrong { color: var(--err-grammar); border-color: var(--err-grammar); }
+
+/* summary */
+.wu-summary { display: flex; flex-direction: column; gap: var(--space-md); }
+.wu-stats { display: flex; flex-wrap: wrap; gap: var(--space-md); }
+.wu-stat { flex: 1 1 160px; padding: var(--space-md); border-radius: var(--radius-md); background: var(--bg); text-align: center; }
+.wu-stat-value { font-size: var(--fs-headline-lg); line-height: var(--lh-headline-lg); font-weight: 800; color: var(--navy-900); }
+.wu-stat-label { color: var(--text-muted); font-weight: 600; }
+.wu-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+.wu-list-item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--space-md); border-radius: var(--radius); background: var(--bg); }
+.wu-list-col { flex-direction: column; align-items: flex-start; gap: var(--space-xs); }
+.wu-struck { color: var(--err-grammar); text-decoration: line-through; }
+.wu-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+
+/* ---- Phones: two header rows, full-width buttons ---- */
+@media (max-width: 767px) {
+  .wu-header { grid-template-columns: auto minmax(0, 1fr); padding: var(--space-sm) var(--space-md); }
+  .wu-steps { grid-column: 1 / -1; grid-row: 2; width: 100%; justify-content: stretch; }
+  .wu-step { flex: 1; justify-content: center; padding: 6px 8px; font-size: var(--fs-label-md); }
+  .wu-main { padding: var(--space-md) var(--space-md) var(--space-xl); }
+  .wu-card { padding: var(--space-md); }
+  .wu-word { font-size: var(--fs-headline-lg); line-height: var(--lh-headline-lg); }
+  .wu-rates { flex-direction: column; }
+  .wu-rate, .wu-after .btn, .wu-actions .btn { width: 100%; }
+  .wu-option .kbd { display: none; }
+  .wu-input-row .btn { width: 100%; }
+  .wu-self { flex-direction: column; align-items: stretch; }
+  .wu-self .btn { width: 100%; }
+  .wu-self-label { margin-right: 0; }
+}
