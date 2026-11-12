@@ -1,23 +1,8 @@
 // "Sao lưu JSON" / "Khôi phục" buttons, restore dialog and a small status line.
 import { exportAll, importData, readBackupFile, countRecords, hasLocalData } from "../services/backup.js";
 import { validateBackup } from "../services/merge.js";
-
-let statusEl = null;
-let statusTimer = null;
-
-export function showStatus(message, kind = "ok") {
-  if (!statusEl) {
-    statusEl = document.createElement("div");
-    statusEl.className = "status-line";
-    statusEl.setAttribute("role", "status");
-    document.body.append(statusEl);
-  }
-  statusEl.textContent = message;
-  statusEl.dataset.kind = kind;
-  statusEl.hidden = false;
-  clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => { statusEl.hidden = true; }, kind === "error" ? 9000 : 5000);
-}
+import { showToast as showStatus } from "./toast.js";
+import { overlayOpened, overlayClosed } from "./overlay.js";
 
 // Resolves "replace" | "merge" | "cancel". The quick-capture FAB is hidden while the dialog is open.
 function askRestoreMode(fileName, recordCount, willBackupFirst) {
@@ -40,12 +25,12 @@ function askRestoreMode(fileName, recordCount, willBackupFirst) {
     dlg.querySelector(".dialog-file").textContent = `${fileName} · ${recordCount} bản ghi`;
     dlg.querySelector(".dialog-note").hidden = !willBackupFirst; // only when there is data to protect
     dlg.addEventListener("close", () => {
-      delete document.body.dataset.overlayOpen;
+      overlayClosed();
       dlg.remove();
       resolve(dlg.returnValue || "cancel");
     });
     document.body.append(dlg);
-    document.body.dataset.overlayOpen = "";
+    overlayOpened();
     dlg.showModal();
   });
 }

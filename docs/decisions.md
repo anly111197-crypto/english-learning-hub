@@ -16,3 +16,8 @@
 | 12/11/2026 | Thêm lại từ/lỗi/notebook đã xoá (tombstone) thì dùng lại id của tombstone | Unique index tính cả bản ghi `deleted`; tránh lỗi trùng và giữ đúng lịch sử sync |
 | 12/11/2026 | Import "Thay thế" kiểm tra tệp trước (trùng lemmaPos/signature/group thì báo lỗi, không ghi gì); ghi dữ liệu trong một transaction; tự tải bản sao lưu hiện tại trước khi đổi (bỏ qua khi DB trống) | DB không bao giờ nằm ở trạng thái nửa vời |
 | 12/11/2026 | Gộp: `tests` theo `key`; `notebooks` trùng `group` gộp như vocab (updatedAt mới thắng); `mergeData` nằm trong `js/services/merge.js` riêng | Hàm thuần chạy được bằng `node --test` |
+| 12/11/2026 | `attempts` Writing có thêm trường `task` (1 hoặc 2); mỗi Task là một attempt, khoá ghi đè là book/test/skill/task. Ô W trên ma trận và "Writing ước tính" = (Task 1 + 2 × Task 2) ÷ 3, làm tròn theo quy tắc 6.1; chỉ có một Task thì hiện band Task đó kèm dấu "*" | **Công thức ước lượng, không phải công thức chính thức** của IELTS; spec chưa quy định cách gộp hai Task |
+| 12/11/2026 | "Đã làm một test" = có cả attempt Listening và Reading; cột x/4 và "x/40 test" đếm theo đó | Khớp với `next-test` (spec 6.2); Writing/Speaking chấm riêng |
+| 12/11/2026 | Số câu đúng L/R dưới 4 (dưới bảng 6.1) quy ra band 2.0, ghi chú "dưới bảng quy đổi"; overall chỉ hiện khi có ≥2 kỹ năng, ghi "Ước tính (n/4)" khi chưa đủ 4 | Spec 6.1 chưa nói các trường hợp này |
+| 12/11/2026 | Link PDF/audio chỉ nhận `https://` (kiểm tra khi lưu và khi hiển thị); mở bằng thẻ `<a target="_blank" rel="noopener noreferrer">` | Tệp backup có thể chứa link lạ; link là của người học |
+| 12/11/2026 | Màu chữ trên ô band lấy từ `--on-band-*` (chữ tối trên amber/teal, chữ trắng trên navy) | Chữ trắng trên amber/teal không đạt tương phản AA |

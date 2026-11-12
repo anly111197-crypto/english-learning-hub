@@ -17,6 +17,7 @@ svg.icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-w
 :focus-visible { outline: 2px solid var(--teal-500); outline-offset: 2px; }
 [tabindex="-1"]:focus { outline: none; }
 
+[hidden] { display: none !important; }
 .nowrap { white-space: nowrap; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

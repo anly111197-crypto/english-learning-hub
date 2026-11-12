@@ -1,19 +1,33 @@
+import { h } from "../components/dom.js";
 import { mountBackupControls } from "../components/backup-ui.js";
+import { loadPracticeData } from "../services/practice-store.js";
+import { nextTest } from "../services/next-test.js";
 
-// Placeholder until Step 6. On phones the sidebar footer is hidden, so backup buttons live here for now.
+const REASONS = { pinned: "Đã ghim", continue: "Tiếp tục cuốn đang làm", "next-book": "Cuốn kế tiếp", start: "Bắt đầu" };
+
+// Placeholder until Step 6: next practice session + (on phones) backup buttons.
 export function dashboardView(container) {
-  const h1 = document.createElement("h1");
-  h1.className = "page-title";
-  h1.textContent = "Dashboard";
+  const nextHost = h("section", { class: "next-card" }, h("p", { class: "muted" }, "Đang tải…"));
 
-  const section = document.createElement("section");
-  section.className = "dashboard-backup";
-  const label = document.createElement("h2");
-  label.className = "section-label";
-  label.textContent = "Dữ liệu";
-  const host = document.createElement("div");
-  section.append(label, host);
-  mountBackupControls(host, "outline");
+  const backupHost = h("div", {});
+  const backup = h("section", { class: "dashboard-backup" }, h("h2", { class: "section-label" }, "Dữ liệu"), backupHost);
+  mountBackupControls(backupHost, "outline");
 
-  container.replaceChildren(h1, section);
+  container.replaceChildren(h("h1", { class: "page-title" }, "Dashboard"), nextHost, backup);
+
+  loadPracticeData().then((data) => {
+    const next = nextTest(data);
+    if (!container.contains(nextHost)) return; // the user already moved to another page
+    if (!next) {
+      nextHost.replaceChildren(h("p", { class: "next-title" }, "Bạn đã làm xong mọi test trong Cam 10–19."));
+      return;
+    }
+    nextHost.replaceChildren(
+      h("p", { class: "summary-label" }, "Buổi luyện tiếp theo"),
+      h("p", { class: "next-title nowrap" }, `Cam ${next.book} · Test ${next.test}`),
+      h("p", { class: "summary-sub" }, REASONS[next.reason]),
+      h("a", { class: "btn btn-primary", href: `#/practice/${next.book}/${next.test}` }, "Mở test này"));
+  }).catch((err) => {
+    nextHost.replaceChildren(h("p", { class: "form-error" }, `Không đọc được dữ liệu: ${err.message}`));
+  });
 }

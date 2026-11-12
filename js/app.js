@@ -2,6 +2,8 @@ import { addRoute, initRouter } from "./router.js";
 import { placeholderView } from "./views/placeholder.js";
 import { dashboardView } from "./views/dashboard.js";
 import { devView } from "./views/dev.js";
+import { practiceView } from "./views/practice.js";
+import { practiceNotebooksView } from "./views/practice-notebooks.js";
 import { mountBackupControls } from "./components/backup-ui.js";
 
 const ROUTES = [
@@ -15,8 +17,22 @@ const ROUTES = [
   { path: "/warmup",              key: "warmup",             nav: null,        title: "Khởi động 15'" },
 ];
 
-const VIEWS = { dashboard: dashboardView };
+const VIEWS = {
+  dashboard: dashboardView,
+  practice: practiceView,
+  "practice-notebooks": practiceNotebooksView,
+};
 for (const r of ROUTES) addRoute(r.path, { ...r, view: VIEWS[r.key] ?? placeholderView(r.title) });
+
+// Test panel over the matrix: same view object as "/practice", so the page is not rebuilt.
+addRoute("/practice/:book/:test", {
+  key: "practice-test",
+  nav: "practice",
+  title: (p) => `Cam ${p.book} · Test ${p.test}`,
+  view: practiceView,
+  fallback: "/practice",
+  validate: (p) => /^(1\d)$/.test(p.book) && /^[1-4]$/.test(p.test),
+});
 
 // Dev tools exist only when the page is opened with ?dev=1 (the query comes before the #).
 if (new URLSearchParams(location.search).get("dev") === "1") {

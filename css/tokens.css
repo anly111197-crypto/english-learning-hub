@@ -8,6 +8,8 @@
   --band-mid: #0D233D;   /* 6.0-6.5 */
   --band-high: #18A6A6;  /* >= 7.0 */
   --band-empty: #EEF1F5;
+  /* Text on band colors (white on amber/teal would fail AA contrast) */
+  --on-band-low: #051C36;  --on-band-mid: #FFFFFF;  --on-band-high: #0D233D;  --on-band-empty: #43474E;
   --err-grammar: #BA1A1A;  --err-vocab: #F59E0B;  --err-structure: #7C3AED;  --fixed: #10B981;
   --radius-sm: 4px; --radius: 8px; --radius-md: 12px; --radius-lg: 16px;
   --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;

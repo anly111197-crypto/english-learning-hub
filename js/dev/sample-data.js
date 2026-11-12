@@ -45,7 +45,7 @@ export async function createSampleData() {
     });
   }
   for (const [book, test, skill, band, rawScore] of ATTEMPTS) {
-    await put("attempts", { book, test, skill, band, rawScore, date: day(-5), durationMin: 60, note: "" });
+    await put("attempts", { book, test, skill, band, rawScore, date: day(-5), durationMin: 60, note: "", ...(skill === "W" ? { task: 2 } : {}) });
   }
   await put("tests", { key: "15-1", book: 15, test: 1, pdfUrl: "", audioUrls: [], pinned: false, note: "" });
 }
