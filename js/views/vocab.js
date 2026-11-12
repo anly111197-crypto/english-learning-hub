@@ -24,7 +24,7 @@ const state = {
   container: null,
   data: null, // { vocab, occurrences }
   derived: new Map(), // word id -> { sources, text }
-  filters: { q: "", source: "", topic: "", boxes: new Set(), pending: false },
+  filters: { q: "", source: "", topic: "", boxes: new Set(), pending: false, due: false },
   selected: new Set(),
   sheet: null,
   panelId: null,
@@ -72,6 +72,7 @@ function matches(w) {
   }
   if (f.boxes.size && !f.boxes.has(w.box)) return false;
   if (f.pending && w.enriched) return false;
+  if (f.due && !isDue(w)) return false;
   return true;
 }
 
@@ -355,11 +356,12 @@ function buildFilters() {
   };
   const boxes = [1, 2, 3, 4, 5].map((n) => chip(`H${n}`, f.boxes.has(n), () => { if (f.boxes.has(n)) f.boxes.delete(n); else f.boxes.add(n); }));
   const pending = chip("Chờ hoàn thiện", f.pending, () => { f.pending = !f.pending; });
+  const due = chip("Đến hạn", f.due, () => { f.due = !f.due; });
 
   return h("div", { class: "vocab-filters" },
     h("div", { class: "vocab-search" }, search),
     h("div", { class: "vocab-selects" }, source, topic),
-    h("div", { class: "chip-group", role: "group", "aria-label": "Lọc theo hộp Leitner" }, boxes, pending));
+    h("div", { class: "chip-group", role: "group", "aria-label": "Lọc theo hộp Leitner" }, boxes, due, pending));
 }
 
 // ---- Lifecycle ----
@@ -380,11 +382,13 @@ phone.addEventListener("change", () => { if (state.active && state.data) renderL
 document.addEventListener("elh:data-changed", () => { if (state.active) reload().catch(() => {}); });
 
 export const vocabView = {
-  mount(container) {
+  mount(container, _params, query = {}) {
     state.active = true;
     state.container = container;
     state.data = null;
     state.selected.clear();
+    // Filters start clean on every visit; the Dashboard can ask for one, e.g. #/vocab?due=1
+    state.filters = { q: "", source: "", topic: "", boxes: new Set(), pending: query.pending === "1", due: query.due === "1" };
     const token = ++state.token;
 
     state.refs.stats = h("p", { class: "vocab-stats" }, "Đang tải…");

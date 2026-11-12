@@ -18,6 +18,12 @@ export async function loadPracticeData() {
   return { attempts, tests, vocab, errors, occurrences, notes, notebooks, bookOrder: loadBookOrder() };
 }
 
+// Everything the Dashboard needs: the practice data plus the warm-up sessions.
+export async function loadDashboardData() {
+  const [data, sessions] = await Promise.all([loadPracticeData(), list("sessions")]);
+  return { ...data, sessions };
+}
+
 // Only https:// links are accepted (and shown): imported backups could contain anything.
 export function isHttpsUrl(value) {
   try {

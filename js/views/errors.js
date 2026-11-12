@@ -75,7 +75,7 @@ function renderFilters() {
     ...ERROR_TYPES.map((t) => chip(`${t.label} ${s.byType[t.slug] ?? 0}`, f.type === t.slug, () => set({ type: t.slug }))),
     chip(`Chưa rõ ${s.byType[""] ?? 0}`, f.type === "", () => set({ type: "" })),
   ];
-  const statuses = [["all", "Tất cả"], ...STATUSES.map((st) => [st, STATUS_LABELS[st]])]
+  const statuses = [["all", "Tất cả"], ["open", "Chưa khắc phục"], ...STATUSES.map((st) => [st, STATUS_LABELS[st]])]
     .map(([key, label]) => chip(label, f.status === key, () => set({ status: key })));
 
   const search = h("input", { class: "input", type: "search", placeholder: "Tìm câu sai, câu đúng, quy tắc…", "aria-label": "Tìm kiếm", autocomplete: "off", value: f.q });
@@ -319,11 +319,15 @@ async function reload() {
 document.addEventListener("elh:data-changed", () => { if (state.active) reload().catch(() => {}); });
 
 export const errorsView = {
-  mount(container) {
+  mount(container, _params, query = {}) {
     state.active = true;
     state.container = container;
     state.data = null;
     state.selected.clear();
+    // Filters start clean on every visit; the Dashboard can ask for some, e.g. #/errors?type=tenses&status=open
+    const type = query.type === "unknown" ? "" : ERROR_TYPES.some((t) => t.slug === query.type) ? query.type : null;
+    const status = query.status === "open" || STATUSES.includes(query.status) ? query.status : "all";
+    state.filters = { type, status, q: "", sort: "occurrences" };
     const token = ++state.token;
 
     state.refs.cards = h("div", { class: "summary-grid" });

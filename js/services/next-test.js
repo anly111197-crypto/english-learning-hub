@@ -8,6 +8,12 @@ const ts = (s) => {
   return Number.isNaN(t) ? 0 : t;
 };
 
+// The most recent attempt: latest date, then latest update. Returns null when there is none.
+export function latestAttempt(attempts) {
+  return [...attempts.filter((a) => !a.deleted)]
+    .sort((a, b) => ts(b.date) - ts(a.date) || ts(b.updatedAt) - ts(a.updatedAt))[0] ?? null;
+}
+
 // Returns { book, test, reason } or null when every test in the order is done.
 // reason: "pinned" | "continue" (same book as the latest attempt) | "next-book" | "start" (no attempts yet).
 //  1. A pinned test wins.
@@ -31,7 +37,7 @@ export function nextTest({ attempts = [], tests = [], bookOrder = DEFAULT_BOOK_O
     return null;
   }
 
-  const latest = [...live].sort((a, b) => ts(b.date) - ts(a.date) || ts(b.updatedAt) - ts(a.updatedAt))[0];
+  const latest = latestAttempt(live);
   const sameBook = firstMissing(latest.book);
   if (sameBook) return { book: latest.book, test: sameBook, reason: "continue" };
 

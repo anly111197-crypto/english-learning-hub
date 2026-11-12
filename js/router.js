@@ -5,6 +5,7 @@
 //   view   a function(container, params), or an object { mount(container, params), update?(params), unmount?() }.
 //          When two routes share the same view object, moving between them calls update() instead of
 //          mount(), so the page is not rebuilt (used to open a panel over the matrix).
+//          Views also get the query of the hash as a plain object: "#/vocab?due=1" -> { due: "1" }.
 const routes = [];
 let outlet = null;
 let notFound = "/";
@@ -21,9 +22,11 @@ export function initRouter(viewEl, fallbackPath = "/") {
   resolve();
 }
 
-function currentPath() {
+function currentLocation() {
   const raw = location.hash.replace(/^#/, "") || "/";
-  return raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
+  const [pathPart, queryPart = ""] = raw.split("?");
+  const path = pathPart.length > 1 ? pathPart.replace(/\/+$/, "") : pathPart || "/";
+  return { path, query: Object.fromEntries(new URLSearchParams(queryPart)) };
 }
 
 function match(route, path) {
@@ -46,7 +49,7 @@ function match(route, path) {
 }
 
 function resolve() {
-  const path = currentPath();
+  const { path, query } = currentLocation();
   let route = null;
   let params = null;
   for (const r of routes) {
@@ -63,10 +66,10 @@ function resolve() {
   if (current && current !== view && current.unmount) current.unmount();
   const sameView = isObject && current === view && view.update;
   if (sameView) {
-    view.update(params);
+    view.update(params, query);
   } else {
-    if (isObject) view.mount(outlet, params);
-    else view(outlet, params);
+    if (isObject) view.mount(outlet, params, query);
+    else view(outlet, params, query);
     outlet.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }

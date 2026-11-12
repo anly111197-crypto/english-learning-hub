@@ -37,6 +37,19 @@ export async function readBackupFile(file) {
   return json;
 }
 
+// What the backup reminder needs: when the last export was, whether there is data, and whether any record
+// was updated after that export.
+export async function backupInfo() {
+  const data = await exportRaw();
+  let lastBackupAt = null;
+  try { lastBackupAt = localStorage.getItem("lastBackupAt"); } catch { /* storage unavailable */ }
+  const all = STORE_NAMES.flatMap((s) => data[s]);
+  const hasData = all.some((r) => !r.deleted);
+  const lastMs = lastBackupAt ? Date.parse(lastBackupAt) : NaN;
+  const hasNewData = Number.isNaN(lastMs) ? hasData : all.some((r) => Date.parse(r.updatedAt) > lastMs);
+  return { lastBackupAt, hasData, hasNewData };
+}
+
 // True when any store holds a record (tombstones included), i.e. an import would change real data.
 export async function hasLocalData() {
   const data = await exportRaw();

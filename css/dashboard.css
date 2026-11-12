@@ -1,0 +1,88 @@
+/* Dashboard and the backup reminder line. Colors come from tokens.css only. */
+
+/* ---- Hero ---- */
+.hero {
+  display: flex; flex-direction: column; gap: var(--space-sm);
+  margin-top: var(--space-md); padding: var(--space-lg);
+  border-radius: var(--radius-lg); background: var(--navy-900); color: var(--on-navy);
+}
+.hero-chip {
+  align-self: flex-start; padding: 4px 12px; border-radius: 9999px;
+  background: var(--navy-700); color: var(--on-navy); font-size: var(--fs-label-md); font-weight: 700;
+}
+.hero-title { font-size: var(--fs-headline-lg); line-height: var(--lh-headline-lg); font-weight: 800; letter-spacing: -0.015em; }
+.hero-reason { color: var(--on-navy-muted); }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-lg); margin-top: var(--space-sm); }
+.btn-hero { min-height: 48px; padding: 0 20px; background: var(--teal-400); color: var(--navy-900); font-weight: 700; }
+.btn-hero:hover { background: var(--teal-500); }
+.hero-link { display: inline-flex; align-items: center; min-height: var(--tap-min); color: var(--on-navy-muted); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.hero-link:hover { color: var(--on-navy); }
+
+/* ---- Four number cards ---- */
+.stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gutter); margin-top: var(--space-lg); }
+.stat-card {
+  display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; padding: var(--space-md);
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text);
+  transition: border-color var(--transition);
+}
+.stat-card:hover { border-color: var(--teal-500); }
+.stat-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-label-md); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted);
+}
+.stat-value { font-size: var(--fs-headline-lg); line-height: var(--lh-headline-lg); font-weight: 700; color: var(--navy-900); }
+.stat-unit { font-size: var(--fs-body-md); font-weight: 600; color: var(--text-muted); }
+.stat-sub { font-size: var(--fs-body-sm); line-height: var(--lh-body-sm); color: var(--text-muted); }
+.stat-skills { display: flex; flex-wrap: wrap; gap: 2px var(--space-md); font-size: var(--fs-label-md); font-weight: 700; color: var(--navy-900); }
+.bar { height: 6px; border-radius: 9999px; background: var(--band-empty); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 9999px; background: var(--teal-500); }
+
+/* ---- Recent activity and the first steps ---- */
+.activity { margin-top: var(--space-xl); }
+.section-title { font-size: var(--fs-headline-sm); line-height: var(--lh-headline-sm); font-weight: 600; color: var(--navy-900); margin-bottom: var(--space-sm); }
+.activity-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+.activity-item {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: var(--space-md);
+  min-height: var(--tap-min); padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface);
+}
+.activity-date { font-size: var(--fs-label-md); font-weight: 700; color: var(--text-muted); }
+.activity-title { font-weight: 600; overflow-wrap: anywhere; }
+.activity-detail { font-size: var(--fs-body-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.activity-link { white-space: nowrap; }
+.guide { display: flex; flex-direction: column; gap: var(--space-sm); counter-reset: step; }
+.guide-step {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); counter-increment: step;
+  padding: var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface);
+}
+.guide-step::before {
+  content: counter(step); display: grid; place-items: center; width: 28px; height: 28px; flex: none;
+  border-radius: 50%; background: var(--navy-700); color: var(--surface); font-weight: 700;
+}
+.guide-text { flex: 1 1 220px; min-width: 0; }
+
+/* ---- Backup reminder line (sidebar and the block at the bottom of the Dashboard) ---- */
+.backup-status { margin-top: var(--space-xs); font-size: var(--fs-label-md); color: var(--text-muted); }
+.backup-status[data-level="none"] { display: none; }
+.nav-foot .backup-status { padding: 0 12px 4px; color: var(--on-navy-muted); }
+.nav-foot .backup-status[data-level="warn"] { color: var(--err-vocab); font-weight: 700; }
+.dashboard-backup .backup-status { margin-top: var(--space-sm); }
+.dashboard-backup .backup-status[data-level="warn"] { padding-left: var(--space-sm); border-left: 3px solid var(--err-vocab); color: var(--navy-900); font-weight: 700; }
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nav-foot .backup-status { display: none; } /* the sidebar only has room for icons here */
+}
+
+/* ---- Narrower screens ---- */
+@media (max-width: 1023px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .hero { padding: var(--space-md); }
+  .stat-grid { gap: var(--space-sm); }
+  .stat-card { padding: var(--space-sm) var(--space-md); }
+  .stat-value { font-size: 24px; line-height: 32px; }
+  .hero-actions .btn-hero { width: 100%; padding: 0 12px; }
+  .activity-item { grid-template-columns: minmax(0, 1fr) auto; row-gap: var(--space-xs); }
+  .activity-date { grid-column: 1 / -1; }
+}

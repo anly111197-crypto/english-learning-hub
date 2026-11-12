@@ -308,8 +308,13 @@ phone.addEventListener("change", () => { if (state.active && state.index) render
 document.addEventListener("elh:data-changed", () => { if (state.active && state.index) refresh().catch(() => {}); });
 
 export const practiceView = {
-  mount(container, params) {
+  mount(container, params, query = {}) {
     state.active = true;
+    // The Dashboard links here with a ready filter, e.g. #/practice?status=improve
+    state.filter = {
+      status: ["todo", "improve"].includes(query.status) ? query.status : "all",
+      skill: SKILLS.includes(query.skill) ? query.skill : null,
+    };
     state.container = container;
     state.params = params?.book ? params : null;
     state.data = null;

@@ -125,6 +125,8 @@ test("filterErrors: by type (including unknown), status and search text without 
   assert.deepEqual(filterErrors(errors, { type: "" }).map((e) => e.id), ["2"]);
   assert.deepEqual(filterErrors(errors, { status: "recurring" }).map((e) => e.id), ["3"]);
   assert.deepEqual(filterErrors(errors, { status: "all" }).length, 3);
+  assert.deepEqual(filterErrors(errors, { status: "open" }).map((e) => e.id), ["1", "3"]); // everything except fixed
+  assert.deepEqual(filterErrors(errors, { status: "open", type: "tenses" }).map((e) => e.id), ["3"]);
   assert.deepEqual(filterErrors(errors, { q: "MAO TU" }).map((e) => e.id), ["1"]);
   assert.deepEqual(filterErrors(errors, { q: "go", type: "tenses" }).map((e) => e.id), ["3"]);
   assert.equal(normalizeType("zzz"), "");

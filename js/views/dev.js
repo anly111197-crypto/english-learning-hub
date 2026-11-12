@@ -96,6 +96,7 @@ export function devView(container) {
 
   const run = async (fn) => {
     try { await fn(); } catch (e) { log(`LỖI: ${e.message}`); }
+    document.dispatchEvent(new CustomEvent("elh:data-changed")); // the sidebar backup line listens
     await refresh();
   };
 

@@ -111,13 +111,18 @@ export function summarizeErrors(errors, occurrences, today) {
 
 // ---- List: filter and sort ----
 
-// type: null = every type, "" = "Chưa rõ", or a slug. status: null | "all" | a status. q: search text.
+// type: null = every type, "" = "Chưa rõ", or a slug. q: search text.
+// status: null | "all" | one status | "open" (every status except fixed: errors still to be fixed).
 export function filterErrors(errors, { type = null, status = null, q = "" } = {}) {
   const needle = foldForSearch(q).trim();
   return errors.filter((e) => {
     if (e.deleted) return false;
     if (type !== null && normalizeType(e.type) !== type) return false;
-    if (status && status !== "all" && e.status !== status) return false;
+    if (status === "open") {
+      if (e.status === "fixed") return false;
+    } else if (status && status !== "all" && e.status !== status) {
+      return false;
+    }
     if (needle) {
       const hay = foldForSearch([e.original, e.corrected, e.explanationVi, e.correctExample, errorTypeLabel(e.type)].join(" "));
       if (!hay.includes(needle)) return false;
