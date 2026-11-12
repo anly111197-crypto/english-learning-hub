@@ -2,6 +2,7 @@
 import { exportRaw, replaceAllRaw } from "./repo.js";
 import { APP_ID, SCHEMA_VERSION, STORE_NAMES } from "./schema.js";
 import { planImport } from "./merge.js";
+import { downloadText } from "../components/download.js";
 
 export function backupFilename(date = new Date()) {
   const p = (n) => String(n).padStart(2, "0");
@@ -18,21 +19,10 @@ export async function buildBackup() {
   };
 }
 
-function download(filename, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-
 export async function exportAll() {
   const backup = await buildBackup();
   const filename = backupFilename();
-  download(filename, JSON.stringify(backup, null, 2));
+  downloadText(filename, JSON.stringify(backup, null, 2));
   try { localStorage.setItem("lastBackupAt", backup.exportedAt); } catch { /* storage unavailable */ }
   return { filename, backup };
 }

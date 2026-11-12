@@ -12,6 +12,7 @@ import { nextTest } from "../services/next-test.js";
 import { loadPracticeData, setPinned } from "../services/practice-store.js";
 import { buildDetail } from "./practice-detail.js";
 import { openResultModal, openLinksModal } from "./practice-forms.js";
+import { openQuickCapture } from "../components/quick-capture.js";
 
 const state = {
   active: false,
@@ -200,6 +201,22 @@ function renderMatrix() {
 }
 
 // ---- Panel ----
+// Words and errors with an occurrence in this test (in the order they were recorded).
+function itemsFor(book, test) {
+  const occs = state.data.occurrences
+    .filter((o) => o.source?.book === book && o.source?.test === test)
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const pick = (type, records) => {
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const seen = new Map();
+    for (const o of occs) {
+      if (o.itemType === type && byId.has(o.itemId) && !seen.has(o.itemId)) seen.set(o.itemId, { rec: byId.get(o.itemId), source: o.source });
+    }
+    return [...seen.values()];
+  };
+  return { vocab: pick("vocab", state.data.vocab), errors: pick("error", state.data.errors) };
+}
+
 function closePanelQuietly() {
   if (state.sheet) {
     state.sheet.routeClosed = true; // the close event is asynchronous: mark it so onClose does not navigate
@@ -221,7 +238,8 @@ function syncPanel() {
   const isNext = state.next?.book === book && state.next?.test === test;
   const reload = async () => { await refresh(); };
 
-  const detail = buildDetail({ book, test, entry, testRec, isNext }, {
+  const detail = buildDetail({ book, test, entry, testRec, isNext, items: itemsFor(book, test) }, {
+    quickCapture: () => openQuickCapture({ source: { book, test } }),
     edit: (skill, task) => openResultModal({ book, test, skill, task: task ?? 2, entry, onSaved: reload }),
     enterResults: () => {
       const e = entry ?? {};
@@ -282,6 +300,8 @@ async function refresh() {
 }
 
 phone.addEventListener("change", () => { if (state.active && state.index) renderMatrix(); });
+// New words or errors were saved (quick capture, backup restore): reload so the panel shows them.
+document.addEventListener("elh:data-changed", () => { if (state.active && state.index) refresh().catch(() => {}); });
 
 export const practiceView = {
   mount(container, params) {

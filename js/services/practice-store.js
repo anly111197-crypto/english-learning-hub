@@ -12,8 +12,10 @@ export function loadBookOrder() {
 }
 
 export async function loadPracticeData() {
-  const [attempts, tests] = await Promise.all([list("attempts"), list("tests")]);
-  return { attempts, tests, bookOrder: loadBookOrder() };
+  const [attempts, tests, vocab, errors, occurrences] = await Promise.all([
+    list("attempts"), list("tests"), list("vocab"), list("errors"), list("occurrences"),
+  ]);
+  return { attempts, tests, vocab, errors, occurrences, bookOrder: loadBookOrder() };
 }
 
 // Only https:// links are accepted (and shown): imported backups could contain anything.

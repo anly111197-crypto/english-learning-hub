@@ -4,6 +4,7 @@ import { bandCell } from "../components/band-cell.js";
 import { formatBand } from "../services/bands.js";
 import { testSummary } from "../services/progress.js";
 import { isHttpsUrl } from "../services/practice-store.js";
+import { errorTypeLabel, SKILL_LABELS, partLabel } from "../services/taxonomy.js";
 
 const ROWS = [
   { skill: "L", task: null, label: "Listening", att: (e) => e?.L },
@@ -60,9 +61,36 @@ function linksBlock(testRec) {
     audio.map((a) => link(a.url, `Mở audio Part ${a.part}`)));
 }
 
-// ctx: { book, test, entry, testRec, isNext }; on: { edit(skill, task), enterResults(), togglePin(), editLinks() }
+// Words and errors that were met in this test. items = { vocab: [{ rec, source }], errors: [{ rec, source }] }
+function itemsBlock(items, onCapture) {
+  const nV = items.vocab.length;
+  const nE = items.errors.length;
+  const where = (source) => (source?.skill ? ` · ${SKILL_LABELS[source.skill]}${source.part ? " " + partLabel(source.skill, source.part) : ""}` : "");
+  const list = nV + nE === 0
+    ? h("p", { class: "muted" }, "Chưa có mục nào.")
+    : h("div", { class: "test-items" },
+      h("p", { class: "muted" }, `${nV} từ · ${nE} lỗi`),
+      nV ? h("ul", { class: "item-list" }, items.vocab.map(({ rec, source }) => h("li", {},
+        h("strong", {}, rec.word),
+        h("span", { class: "muted" }, ` ${rec.meaningVi ? "· " + rec.meaningVi : ""}${where(source)}`),
+        rec.enriched ? null : [" ", h("span", { class: "tag nowrap" }, "Chờ hoàn thiện")]))) : null,
+      nE ? h("ul", { class: "item-list" }, items.errors.map(({ rec, source }) => h("li", {},
+        h("span", {}, rec.original),
+        rec.corrected ? h("span", { class: "muted" }, " → ") : null,
+        rec.corrected ? h("strong", {}, rec.corrected) : null,
+        h("span", { class: "muted nowrap" }, ` · ${rec.type ? errorTypeLabel(rec.type) : "Chưa rõ nhóm"}${rec.occurrences > 1 ? ` · ×${rec.occurrences}` : ""}${where(source)}`),
+        rec.enriched ? null : [" ", h("span", { class: "tag nowrap" }, "Chờ hoàn thiện")]))) : null);
+  return [
+    h("h3", { class: "section-label" }, "Từ mới & lỗi của test này"),
+    list,
+    h("button", { type: "button", class: "btn btn-outline btn-sm", onClick: onCapture }, "+ Ghi nhanh cho test này"),
+  ];
+}
+
+// ctx: { book, test, entry, testRec, isNext, items }
+// on:  { edit(skill, task), enterResults(), togglePin(), editLinks(), quickCapture() }
 export function buildDetail(ctx, on) {
-  const { book, test, entry, testRec, isNext } = ctx;
+  const { book, test, entry, testRec, isNext, items } = ctx;
   const summary = testSummary(entry);
   const pinned = Boolean(testRec?.pinned);
 
@@ -79,8 +107,7 @@ export function buildDetail(ctx, on) {
     h("h3", { class: "section-label" }, "Đề và audio của bạn"),
     linksBlock(testRec) ?? h("p", { class: "muted" }, "Chưa có link."),
     h("button", { type: "button", class: "btn btn-text btn-sm", onClick: on.editLinks }, "Sửa link"),
-    h("h3", { class: "section-label" }, "Từ mới & lỗi của test này"),
-    h("p", { class: "muted" }, "Chưa có mục nào."));
+    itemsBlock(items ?? { vocab: [], errors: [] }, on.quickCapture));
 
   return {
     title: `Cam ${book} · Test ${test}`,

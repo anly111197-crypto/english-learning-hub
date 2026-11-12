@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v3";
+const CACHE_VERSION = "elh-v4";
 
 const APP_SHELL = [
   "./",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "css/layout.css",
   "css/components.css",
   "css/practice.css",
+  "css/vocab.css",
   "js/app.js",
   "js/router.js",
   "js/views/placeholder.js",
@@ -19,6 +20,11 @@ const APP_SHELL = [
   "js/views/practice-detail.js",
   "js/views/practice-forms.js",
   "js/views/practice-notebooks.js",
+  "js/views/vocab.js",
+  "js/views/vocab-detail.js",
+  "js/components/quick-capture.js",
+  "js/components/speech.js",
+  "js/components/download.js",
   "js/components/dom.js",
   "js/components/overlay.js",
   "js/components/toast.js",
@@ -36,6 +42,11 @@ const APP_SHELL = [
   "js/services/progress.js",
   "js/services/next-test.js",
   "js/services/practice-store.js",
+  "js/services/capture.js",
+  "js/services/vocab-ops.js",
+  "js/services/csv.js",
+  "js/services/leitner.js",
+  "js/services/taxonomy.js",
   "js/vendor/idb.js",
   "assets/icons/icon-192.png",
   "assets/icons/icon-512.png",

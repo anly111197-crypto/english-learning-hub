@@ -4,6 +4,8 @@ import { dashboardView } from "./views/dashboard.js";
 import { devView } from "./views/dev.js";
 import { practiceView } from "./views/practice.js";
 import { practiceNotebooksView } from "./views/practice-notebooks.js";
+import { vocabView } from "./views/vocab.js";
+import { initQuickCapture } from "./components/quick-capture.js";
 import { mountBackupControls } from "./components/backup-ui.js";
 
 const ROUTES = [
@@ -21,6 +23,7 @@ const VIEWS = {
   dashboard: dashboardView,
   practice: practiceView,
   "practice-notebooks": practiceNotebooksView,
+  vocab: vocabView,
 };
 for (const r of ROUTES) addRoute(r.path, { ...r, view: VIEWS[r.key] ?? placeholderView(r.title) });
 
@@ -40,6 +43,7 @@ if (new URLSearchParams(location.search).get("dev") === "1") {
 }
 
 mountBackupControls(document.getElementById("backup-controls"), "navy");
+initQuickCapture();
 
 initRouter(document.getElementById("view"), "/");
 
