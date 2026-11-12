@@ -27,7 +27,7 @@
 
 **Kiểm thử**
 - Đơn vị: `node --test tests/*.test.js` (164 test, pass).
-- Headless: chạy bằng Chrome qua CDP với phím và chuột thật. Server tĩnh: `python -m http.server 8765` trong thư mục repo, rồi `node cdp.mjs <kịch bản> <thư-mục-scratch>`. Các kịch bản (capture, practice, grammar, selfcheck, warmup, warmup-exit, warmup-clock, warmup-empty, warmup-m, dashboard, dashboard-m, backup UI) nằm trong `cdp.mjs` và `cdp2.mjs`. **Hai file này đang ở thư mục scratchpad tạm của phiên làm việc, chưa có trong repo** (Chrome ở `C:/Program Files/Google/Chrome/Application/chrome.exe`). Nếu muốn dùng lại, cần đưa chúng vào repo (ví dụ `tests/e2e/`) trước.
+- Headless (Chrome qua CDP, phím và chuột thật): `python -m http.server 8765` ở thư mục repo, rồi `node tests/e2e/run.mjs <kịch bản> [thư-mục-xuất]`. Danh sách kịch bản và cách đọc kết quả: `tests/e2e/README.md`. Script luôn thoát mã 0, phải tự đọc `FAIL` và dòng `console problems`. Không nằm trong `APP_SHELL`.
 
 ## 3. Chưa thử trên thiết bị thật
 
