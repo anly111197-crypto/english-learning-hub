@@ -84,8 +84,9 @@ function renderClock() {
   const grading = d.phase === "grade";
   s.refs.time.textContent = grading ? formatClockSec(d.elapsedSec) : formatClockSec(remainingSec(d.limitMin, d.elapsedSec));
   s.refs.time.dataset.state = grading ? "done" : up ? "up" : s.running ? "run" : "pause";
-  s.refs.timeLabel.textContent = grading ? "Đã dùng" : up ? "Hết giờ" : s.running ? "Còn lại" : "Đang tạm dừng";
-  s.refs.pause.textContent = s.running ? "Tạm dừng" : "Tiếp tục";
+  const fresh = d.elapsedSec === 0; // never started: the clock only runs after "Bắt đầu" (or the first Play of the audio)
+  s.refs.timeLabel.textContent = grading ? "Đã dùng" : up ? "Hết giờ" : s.running ? "Còn lại" : fresh ? "Chưa bắt đầu" : "Đang tạm dừng";
+  s.refs.pause.textContent = s.running ? "Tạm dừng" : fresh ? "Bắt đầu" : "Tiếp tục";
   s.refs.pause.hidden = grading || up || s.finished;
   s.refs.limit.hidden = grading || s.finished;
   s.refs.timeUp.hidden = !(up && !grading && !s.finished);
@@ -96,6 +97,15 @@ function setLocked(locked) {
   s.locked = locked;
   s.root.dataset.locked = String(locked);
   for (const el of s.root.querySelectorAll(".ans, .write-text")) el.readOnly = locked || s.finished;
+}
+
+// The first Play of the audio starts a clock that has never been started. After a reload the clock stays paused:
+// only "Tiếp tục" runs it again.
+function startIfFresh() {
+  if (!s || s.running || s.finished || s.draft.phase === "grade" || s.draft.elapsedSec !== 0) return;
+  s.running = true;
+  s.last = Date.now();
+  renderClock();
 }
 
 // ---- Answer sheet (Listening / Reading) ----
@@ -289,6 +299,8 @@ async function loadTask(task) {
   const sub = await loadWritingDraft(s.book, s.test, task);
   const picked = pickWritingState(draft, sub);
   s.draft = draft;
+  s.running = false; // every Task's clock starts paused
+  s.running = false;
   s.sub = { id: sub?.id ?? null, text: picked.text, prompt: picked.prompt, dirty: picked.text !== (sub?.text ?? "") || picked.prompt !== (sub?.prompt ?? "") };
   s.last = Date.now();
   s.refs.limit.querySelector("input").value = String(draft.limitMin);
@@ -421,7 +433,7 @@ function buildFrame(testRec) {
     h("div", { class: "run-submit" }, info, action, done),
     timeUp);
 
-  x.source = createSource({ book: x.book, test: x.test, skill: x.skill, testRec, storage: storage() });
+  x.source = createSource({ book: x.book, test: x.test, skill: x.skill, testRec, storage: storage(), onPlay: startIfFresh });
   const sheet = h("div", { class: "run-sheet-body" });
   const tabs = h("div", { class: "seg run-tabs", role: "tablist", "aria-label": "Đề hoặc phiếu" },
     [["source", "Đề"], ["sheet", x.skill === "W" ? "Bài viết" : "Phiếu"]].map(([id, label]) => h("button", {
@@ -445,7 +457,7 @@ async function start(container, params) {
   const test = Number(params.test);
   const skill = params.skill;
   const x = {
-    container, book, test, skill, task: skill === "W" ? 2 : null, finished: false, busy: false, running: true, locked: false,
+    container, book, test, skill, task: skill === "W" ? 2 : null, finished: false, busy: false, running: false, locked: false,
     last: Date.now(), chain: Promise.resolve(), timers: [], listeners: [], source: null, refs: null, root: null,
     key: draftKey(book, test, skill, skill === "W" ? 2 : null), draft: null, sub: null,
   };

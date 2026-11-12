@@ -10,8 +10,8 @@ import {
 
 const SEEK_SECONDS = 5;
 
-// opts: { book, test, skill, testRec, storage, onStatus?() }
-export function createSource({ book, test, skill, testRec, storage }) {
+// opts: { book, test, skill, testRec, storage, onPlay?() }  onPlay runs every time the audio starts playing
+export function createSource({ book, test, skill, testRec, storage, onPlay = null }) {
   const pdfLink = isHttpsUrl(testRec?.pdfUrl) ? testRec.pdfUrl : null;
   const driveId = pdfLink ? driveFileId(pdfLink) : null;
   const wantsAudio = skill === "L";
@@ -151,7 +151,7 @@ export function createSource({ book, test, skill, testRec, storage }) {
     }
     const cur = s.tracks[s.track];
     audioEl = h("audio", { class: "run-audio-el", controls: true, preload: "metadata", src: cur.url, "aria-label": "Audio" });
-    audioEl.addEventListener("play", syncPlay);
+    audioEl.addEventListener("play", () => { syncPlay(); onPlay?.(); });
     audioEl.addEventListener("pause", syncPlay);
     audioEl.addEventListener("ended", syncPlay);
 

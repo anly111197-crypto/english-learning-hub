@@ -1280,7 +1280,9 @@ try {
       ok("nav and FAB are hidden", await evalJs(`getComputedStyle(document.querySelector('.nav')).display === 'none' && getComputedStyle(document.querySelector('.fab')).display === 'none'`));
       ok("two columns on a laptop (source left, sheet right), no tabs", await evalJs(`(() => { const a = document.querySelector('.run-source').getBoundingClientRect(), b = document.querySelector('.run-sheet').getBoundingClientRect(); return a.right <= b.left + 1 && a.top === b.top && getComputedStyle(document.querySelector('.run-tabs')).display === 'none'; })()`));
       ok("40 boxes grouped 4 x 10 (Part 1..4)", (await count(".ans")) === 40 && (await evalJs(`[...document.querySelectorAll('.sheet-group')].map(g => g.querySelectorAll('.ans').length).join(',')`)) === "10,10,10,10" && (await evalJs(`document.querySelector('.sheet-group-title').textContent`)) === "Part 1 · câu 1–10");
-      ok("clock starts at 30:00 for Listening", /^(30:00|29:5\d)$/.test(await clockText()), await clockText());
+      ok("clock shows 30:00 for Listening and has NOT started: label 'Chưa bắt đầu', button 'Bắt đầu'", (await clockText()) === "30:00" && (await text(".run-time-label")) === "Chưa bắt đầu" && (await text("[data-role=pause]")) === "Bắt đầu");
+      await sleep(1400);
+      ok("it is still 30:00 a moment later", (await clockText()) === "30:00");
 
       // Drive link: the preview frame, and the link that always opens a new tab
       await evalJs(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction('tests', 'readwrite'); tx.objectStore('tests').put({ key: '15-1', book: 15, test: 1, pdfUrl: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing', audioUrls: ['https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0AAAAAA/view', '', '', ''], pinned: false, note: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deleted: false }); tx.oncomplete = () => res(true); }; })`);
@@ -1306,6 +1308,7 @@ try {
       await evalJs(`document.activeElement.blur(); true`);
       await press(" ");
       ok("Space plays", await waitFor(`!document.querySelector('.run-audio-el').paused`, 3000));
+      ok("the first Play of the audio starts the clock", await waitFor(`document.querySelector('.run-time-label').textContent === 'Còn lại'`, 3000) && (await text("[data-role=pause]")) === "Tạm dừng");
       await press(" ");
       ok("Space pauses", await waitFor(`document.querySelector('.run-audio-el').paused`, 3000));
       await evalJs(`document.querySelector('.run-audio-el').currentTime = 10; true`);
@@ -1334,6 +1337,12 @@ try {
       ok("reload right after typing: the 12 answers are still there", a12.slice(0, 12).every((v, i) => v === `a${i + 1}`) && a12[12] === "", JSON.stringify(a12));
       const el1 = JSON.parse(await ls("elh.run.15-1-L")).elapsedSec;
       ok("elapsed time was kept too", el1 > 0, String(el1));
+      const frozen = await clockText();
+      await sleep(1500);
+      ok("after the reload the clock is paused ('Đang tạm dừng', button 'Tiếp tục') and does not move", (await text(".run-time-label")) === "Đang tạm dừng" && (await text("[data-role=pause]")) === "Tiếp tục" && (await clockText()) === frozen, `${frozen} -> ${await clockText()}`);
+      await click("[data-role=pause]");
+      await sleep(1400);
+      ok("'Tiếp tục' runs it again", (await text(".run-time-label")) === "Còn lại" && (await clockText()) !== frozen);
       ok("after the reload the file is gone (as expected) and the remembered names are offered", (await count(".run-pdf")) === 0 && (await text("[data-role=remembered]")).includes("Cam 15 Test 1.pdf"));
 
       // Type the rest and wait for the 5 s autosave without reloading
@@ -1442,6 +1451,9 @@ try {
       await go(BASE + "#/practice/15/2/R");
       await runReady(".run .ans");
       ok("restored: limit 1 minute and the typed answer", (await evalJs(`document.querySelector('.run-limit-input').value`)) === "1" && (await evalJs(`document.querySelector('#ans-1').value`)) === "true");
+      await sleep(1500);
+      ok("restored clock is paused: still 00:01 (0.8 s left), no 'Hết giờ' yet, button 'Tiếp tục'", (await clockText()) === "00:01" && (await text(".run-time-label")) === "Đang tạm dừng" && (await text("[data-role=pause]")) === "Tiếp tục" && await evalJs(`document.querySelector('.run-timeup').hidden`));
+      await click("[data-role=pause]");
       ok("time is up: 'Hết giờ' shown and the sheet is locked", await waitFor(`document.querySelector('.run-timeup') && !document.querySelector('.run-timeup').hidden && document.querySelector('.run-time-label').textContent === 'Hết giờ'`, 4000) && await evalJs(`[...document.querySelectorAll('.ans')].every(e => e.readOnly) && document.querySelector('.run').dataset.locked === 'true'`));
       ok("clock shows 00:00 and the pause button is gone", (await clockText()) === "00:00" && await evalJs(`document.querySelector('[data-role=pause]').hidden`));
       await typeText("zzz");
@@ -1461,10 +1473,19 @@ try {
       await seed();
       await go(BASE + "#/practice/15/1/W");
       await runReady(".write-text");
-      ok("Writing opens on Task 2 with a 40:00 clock", (await evalJs(`document.querySelector('.seg [data-task="2"]').getAttribute('aria-pressed')`)) === "true" && /^(40:00|39:5\d)$/.test(await clockText()), await clockText());
+      ok("Writing opens on Task 2 with a 40:00 clock", (await evalJs(`document.querySelector('.seg [data-task="2"]').getAttribute('aria-pressed')`)) === "true" && (await clockText()) === "40:00", await clockText());
       await click(".seg [data-task='1']");
       await sleep(600);
-      ok("Task 1: 20:00 clock", /^(20:00|19:5\d)$/.test(await clockText()), await clockText());
+      ok("Task 1: 20:00 clock, not started", (await clockText()) === "20:00" && (await text("[data-role=pause]")) === "Bắt đầu", await clockText());
+      await click("[data-role=pause]");
+      await sleep(1400);
+      ok("'Bắt đầu' starts the clock (button becomes 'Tạm dừng')", (await clockText()) !== "20:00" && (await text("[data-role=pause]")) === "Tạm dừng");
+      await click(".seg [data-task='2']");
+      await sleep(600);
+      ok("switching Task: the other Task's clock is its own and paused", (await clockText()) === "40:00" && (await text(".run-time-label")) === "Chưa bắt đầu");
+      await click(".seg [data-task='1']");
+      await sleep(600);
+      ok("back on Task 1 the clock kept its time but is paused", (await text(".run-time-label")) === "Đang tạm dừng" && (await clockText()) !== "20:00");
       ok("empty text warns about the 150-word minimum", (await text(".write-count")).includes("Cần ít nhất 150 từ") && (await evalJs(`document.querySelector('.write-count').dataset.warn`)) === "true");
       await focus("#w-prompt");
       await typeText("The chart shows rainfall in three cities.");

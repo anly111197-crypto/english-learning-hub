@@ -39,7 +39,7 @@ Test đơn vị chạy riêng: `node --test tests/*.test.js`.
 | `warmup-m` | Khởi động trên 390px. |
 | `dashboard` | Dashboard: số khớp các màn khác, thẻ mở đúng bộ lọc, hero đổi sau khi khởi động, hoạt động gần đây, nhắc sao lưu, trạng thái rỗng. |
 | `dashboard-m` | Dashboard 390px: lưới 2×2, nút hero một dòng, không tràn ngang. |
-| `run-listening` | Màn Luyện đề (Bước 6b), Listening trên laptop: 3 nút Luyện ở panel, ẩn nav/FAB, 2 cột, 4×10 ô, khung xem Drive + link tab mới, chọn PDF và 4 audio (tạo giả lúc chạy), thứ tự Part, phím Space/←/→, Enter sang ô kế, tải lại không mất đáp án, tự lưu 5 giây, tạm dừng, nộp, chấm bằng phím 1/2, số ô chưa chấm, Ghi lỗi/từ đúng nguồn, phím N, hỏi ghi đè, lưu attempt, xoá nháp, ô ma trận và panel. |
+| `run-listening` | Màn Luyện đề (Bước 6b), Listening trên laptop: 3 nút Luyện ở panel, ẩn nav/FAB, 2 cột, 4×10 ô, khung xem Drive + link tab mới, chọn PDF và 4 audio (tạo giả lúc chạy), thứ tự Part, phím Space/←/→, Enter sang ô kế, tải lại không mất đáp án, tự lưu 5 giây, tạm dừng, nộp, chấm bằng phím 1/2, số ô chưa chấm, Ghi lỗi/từ đúng nguồn, phím N, hỏi ghi đè, lưu attempt, xoá nháp; đồng hồ chỉ chạy khi bấm Bắt đầu / Phát audio lần đầu, tải lại thì tạm dừng, ô ma trận và panel. |
 | `run-listening-m` | Luyện đề ở 390px: tab Đề/Phiếu, thanh audio còn khi sang tab Phiếu, không tràn ngang, vùng bấm ≥44px, nộp khi còn ô trống thì hỏi. Có ảnh `run-m-*.png`. |
 | `run-clock` | Luyện đề Reading: 3 Passage 13/13/14, đồng hồ 60', hết giờ khoá phiếu, tăng giới hạn thì mở khoá, hỏi khi nộp thiếu, Thoát giữ nháp. |
 | `run-writing` | Luyện đề Writing: Task 1/2 và đồng hồ 20'/40', đếm từ và cảnh báo, tự lưu vào `submissions`, tải lại không mất chữ, không tạo bản ghi trùng, Xong → modal band, attempt gắn `submissionId`, bài mới bắt đầu trống. |
@@ -49,6 +49,8 @@ Test đơn vị chạy riêng: `node --test tests/*.test.js`.
 Dữ liệu mẫu cho các kịch bản nằm trong `js/dev/sample-data.js`.
 
 ## Lưu ý
+
+- Thư mục xuất giữ file tải về giữa các lần chạy: nếu capture báo FAIL  CSV downloaded thì xoá file elh-vocab-*.csv cũ trong thư mục đó rồi chạy lại (Chrome ghi đè file cùng tên nên kịch bản không thấy file mới).
 
 - Các kịch bản `run-*` tự tạo PDF và file audio WAV giả (im lặng) trong một thư mục tạm của hệ điều hành lúc chạy. Không có file đề hay audio nào nằm trong repo.
 
