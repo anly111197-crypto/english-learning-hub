@@ -81,7 +81,22 @@
 .notebook-note-text { overflow-wrap: anywhere; }
 .notebook-note-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); font-size: var(--fs-body-sm); }
 .notebook-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-@media (max-width: 767px) { .notebook-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 767px) {
+  .notebook-grid { grid-template-columns: minmax(0, 1fr); }
+
+  /* Phones: the group chips and the status chips are one scrollable row each. */
+  .error-filters .chip-group {
+    flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding: 2px 2px 4px; margin: 0 -2px;
+  }
+  .error-filters .chip-group::-webkit-scrollbar { display: none; }
+  .error-filters .chip-btn { flex: none; }
+  .filter-row { flex-direction: column; align-items: stretch; }
+  .filter-row > .chip-group { width: 100%; }
+  .filter-search { flex: none; width: 100%; justify-content: stretch; }
+  .filter-search .input { flex: 1 1 100%; }
+  .filter-search select.input { flex: 1 1 100%; }
+}
 
 /* paste form */
 .paste-box { max-height: 220px; overflow-y: auto; }
