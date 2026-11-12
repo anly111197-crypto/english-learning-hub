@@ -43,6 +43,7 @@ const APP_SHELL = [
   "js/services/next-test.js",
   "js/services/practice-store.js",
   "js/services/capture.js",
+  "js/services/capture-source.js",
   "js/services/vocab-ops.js",
   "js/services/csv.js",
   "js/services/leitner.js",

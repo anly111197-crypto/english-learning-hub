@@ -8,20 +8,40 @@ import { ERROR_TYPES, SKILL_LABELS, PART_OPTIONS, POS_OPTIONS } from "../service
 import { BOOKS, TESTS } from "../services/progress.js";
 import { loadPracticeData } from "../services/practice-store.js";
 import { nextTest } from "../services/next-test.js";
+import { pickDefaultSource } from "../services/capture-source.js";
 
-// Remembered for the session so a run of captures on the same test needs the source set only once.
-const memory = { tab: "word", last: null }; // last = the source of the previous save
+// The previous save is remembered (also across reloads, for 3 hours) so a run of captures on the same
+// test needs the source set only once.
+const LAST_KEY = "lastCapture";
+const memory = { tab: "word", last: null }; // last = { source, at }
+
+function readLast() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAST_KEY));
+    if (saved?.source && Number.isFinite(saved.at)) return saved;
+  } catch { /* storage unavailable or invalid */ }
+  return memory.last;
+}
+
+function writeLast(source) {
+  memory.last = source ? { source, at: Date.now() } : null;
+  try {
+    if (memory.last) localStorage.setItem(LAST_KEY, JSON.stringify(memory.last));
+    else localStorage.removeItem(LAST_KEY);
+  } catch { /* storage unavailable: the in-memory copy is enough */ }
+}
 let active = false; // a capture form is open (or opening)
 
-// Source to pre-fill: the test whose panel is open, else the source of the previous save in this session
-// (a run of captures usually stays on one test), else the "next" test.
+// Source to pre-fill: the test whose panel is open; else the test of the previous save if it was within
+// the last 3 hours; else the "next" test.
 async function defaultSource() {
   const m = /^#\/practice\/(1\d)\/([1-4])$/.exec(location.hash);
-  if (m) return { book: Number(m[1]), test: Number(m[2]) };
-  if (memory.last) return { ...memory.last };
+  const panel = m ? { book: Number(m[1]), test: Number(m[2]) } : null;
+  const last = readLast();
+  const known = pickDefaultSource({ panel, last });
+  if (known) return known;
   try {
-    const next = nextTest(await loadPracticeData());
-    return next ? { book: next.book, test: next.test } : null;
+    return pickDefaultSource({ next: nextTest(await loadPracticeData()) });
   } catch {
     return null;
   }
@@ -73,7 +93,7 @@ export async function openQuickCapture({ source, tab } = {}) {
   active = true;
   try {
     const base = source ?? (await defaultSource());
-    const last = memory.last;
+    const last = readLast()?.source ?? null;
     // Keep skill and part from the previous save only when it was the same test.
     const same = base && last && last.book === base.book && last.test === base.test;
     const initial = base ? { ...base, skill: base.skill ?? (same ? last.skill : null), part: base.part ?? (same ? last.part : null) } : null;
@@ -174,7 +194,7 @@ function buildForm(initialSource, initialTab) {
           ? `Đã lưu · ${n} mục chờ hoàn thiện`
           : `Lỗi này đã có, đã tính thêm một lần gặp · ${n} mục chờ hoàn thiện`;
       }
-      memory.last = src;
+      writeLast(src);
       modal.close();
       document.dispatchEvent(new CustomEvent("elh:data-changed"));
       showToast(message);
