@@ -105,6 +105,9 @@ export function buildDetail(ctx, on) {
       h("button", { type: "button", class: "btn btn-outline", "aria-pressed": String(pinned), onClick: on.togglePin },
         pinned ? "Bỏ ghim buổi tiếp theo" : "Ghim làm buổi tiếp theo")),
     isNext ? h("p", { class: "next-note" }, pinned ? "Đang ghim làm buổi luyện tiếp theo." : "Đây là buổi luyện tiếp theo.") : null,
+    h("h3", { class: "section-label" }, "Luyện trong app"),
+    h("div", { class: "run-links" }, [["L", "Listening"], ["R", "Reading"], ["W", "Writing"]].map(([skill, name]) =>
+      h("a", { class: "btn btn-outline", href: `#/practice/${book}/${test}/${skill}` }, `Luyện ${name}`))),
     h("h3", { class: "section-label" }, "Đề và audio của bạn"),
     linksBlock(testRec) ?? h("p", { class: "muted" }, "Chưa có link."),
     h("button", { type: "button", class: "btn btn-text btn-sm", onClick: on.editLinks }, "Sửa link"),

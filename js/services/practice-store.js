@@ -2,6 +2,7 @@
 import { list, query, get, put } from "./repo.js";
 import { DEFAULT_BOOK_ORDER } from "./next-test.js";
 import { BOOKS, testKey } from "./progress.js";
+import { countWords, findWritingDraft } from "./practice-run.js";
 
 export function loadBookOrder() {
   try {
@@ -34,15 +35,45 @@ export function isHttpsUrl(value) {
 }
 
 // One attempt per book/test/skill (and per Task for Writing). Saving again overwrites the old one.
-export async function saveAttempt({ book, test, skill, task = null, rawScore = null, band, date, durationMin = null, note = "" }) {
+// findAttempt returns the attempt that saving would overwrite, or null.
+export async function findAttempt(book, test, skill, task = null) {
   const sameTest = await query("attempts", "bookTest", [book, test]);
-  const existing = sameTest.find((a) => a.skill === skill && (skill !== "W" || (a.task ?? 2) === task));
+  return sameTest.find((a) => a.skill === skill && (skill !== "W" || (a.task ?? 2) === task)) ?? null;
+}
+
+export async function saveAttempt({ book, test, skill, task = null, rawScore = null, band, date, durationMin = null, note = "", submissionId = null }) {
+  const existing = await findAttempt(book, test, skill, task);
   const rec = { ...(existing ?? {}), book, test, skill, band, date, durationMin, note };
+  if (submissionId) rec.submissionId = submissionId;
   if (skill === "W") rec.task = task;
   else delete rec.task;
   if (rawScore === null) delete rec.rawScore;
   else rec.rawScore = rawScore;
   return put("attempts", rec);
+}
+
+// ---- Writing pieces written on the practice screen (spec 5.9) ----
+// The unfinished piece for this test and Task (status "draft", no doneAt), or null.
+export async function loadWritingDraft(book, test, task) {
+  return findWritingDraft(await query("submissions", "kind", "writing"), { book, test, task });
+}
+
+// Creates the piece on the first save and updates the same record afterwards. Returns the stored record.
+export async function saveWritingDraft({ id = null, book, test, task, prompt = "", text = "", durationSec = 0 }) {
+  const old = id ? await get("submissions", id) : null;
+  const rec = {
+    ...(old ?? {}),
+    kind: "writing", source: { book, test, task }, taskType: old?.taskType ?? "",
+    prompt, text, wordCount: countWords(text), durationSec: Math.round(durationSec), status: old?.status ?? "draft",
+  };
+  if (id) rec.id = id;
+  return put("submissions", rec);
+}
+
+// "Xong": the text is final. The status stays "draft" until Claude analyzes it (step 8); doneAt tells them apart.
+export async function finishWriting(fields) {
+  const rec = await saveWritingDraft(fields);
+  return put("submissions", { ...rec, doneAt: new Date().toISOString() });
 }
 
 const emptyTest = (book, test) => ({ key: testKey(book, test), book, test, pdfUrl: "", audioUrls: ["", "", "", ""], pinned: false, note: "" });

@@ -3,6 +3,7 @@ import { placeholderView } from "./views/placeholder.js";
 import { dashboardView } from "./views/dashboard.js";
 import { devView } from "./views/dev.js";
 import { practiceView } from "./views/practice.js";
+import { practiceRunView } from "./views/practice-run.js";
 import { practiceNotebooksView } from "./views/practice-notebooks.js";
 import { vocabView } from "./views/vocab.js";
 import { errorsView } from "./views/errors.js";
@@ -39,6 +40,16 @@ addRoute("/practice/:book/:test", {
   view: practiceView,
   fallback: "/practice",
   validate: (p) => /^(1\d)$/.test(p.book) && /^[1-4]$/.test(p.test),
+});
+
+// In-app practice screen (spec 5.9). Full screen: the nav and the FAB are hidden by css/practice-run.css.
+addRoute("/practice/:book/:test/:skill", {
+  key: "practice-run",
+  nav: "practice",
+  title: (p) => `Luyện Cam ${p.book} Test ${p.test} · ${({ L: "Listening", R: "Reading", W: "Writing" })[p.skill]}`,
+  view: practiceRunView,
+  fallback: "/practice",
+  validate: (p) => /^(1\d)$/.test(p.book) && /^[1-4]$/.test(p.test) && /^[LRW]$/.test(p.skill),
 });
 
 // Dev tools exist only when the page is opened with ?dev=1 (the query comes before the #).

@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v7";
+const CACHE_VERSION = "elh-v8";
 
 const APP_SHELL = [
   "./",
@@ -15,6 +15,7 @@ const APP_SHELL = [
   "css/errors.css",
   "css/warmup.css",
   "css/dashboard.css",
+  "css/practice-run.css",
   "js/app.js",
   "js/router.js",
   "js/views/placeholder.js",
@@ -22,6 +23,8 @@ const APP_SHELL = [
   "js/views/practice.js",
   "js/views/practice-detail.js",
   "js/views/practice-forms.js",
+  "js/views/practice-run.js",
+  "js/views/practice-run-source.js",
   "js/views/practice-notebooks.js",
   "js/views/vocab.js",
   "js/views/vocab-detail.js",
@@ -51,6 +54,7 @@ const APP_SHELL = [
   "js/services/progress.js",
   "js/services/next-test.js",
   "js/services/practice-store.js",
+  "js/services/practice-run.js",
   "js/services/capture.js",
   "js/services/capture-source.js",
   "js/services/vocab-ops.js",
@@ -89,6 +93,10 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // Never touch (and never cache) the learner's own files: blob: URLs of the practice screen (PDF / audio picked on
+  // this computer) and Google Drive (preview frames). A blob: URL reports this site's origin, so check the scheme first.
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+  if (url.hostname === "drive.google.com" || url.hostname.endsWith(".googleusercontent.com")) return;
   if (url.origin !== self.location.origin) return; // fonts, Google APIs: leave to the browser
 
   event.respondWith(

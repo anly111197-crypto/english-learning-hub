@@ -18,7 +18,8 @@ function resultText(skill, rawText) {
 }
 
 // entry = { L, R, S, W1, W2 } existing attempts of this test (may be undefined).
-export function openResultModal({ book, test, skill = "L", task = 2, entry, onSaved }) {
+// submissionId / suggestMinutes come from the practice screen (Writing "Xong"): link the piece and prefill the minutes.
+export function openResultModal({ book, test, skill = "L", task = 2, entry, onSaved, submissionId = null, suggestMinutes = null }) {
   const state = { skill, task };
   const tabs = h("div", { class: "seg", role: "tablist", "aria-label": "Kỹ năng" });
   const fields = h("div", { class: "form-fields" });
@@ -71,7 +72,7 @@ export function openResultModal({ book, test, skill = "L", task = 2, entry, onSa
     const dateInput = h("input", { id: "f-date", class: "input", type: "date", value: old?.date ?? todayIso(), required: true });
     const minInput = h("input", {
       id: "f-min", class: "input", type: "number", inputmode: "numeric", min: "1", max: "600", step: "1",
-      value: old?.durationMin ?? "",
+      value: suggestMinutes ?? old?.durationMin ?? "",
     });
     const noteInput = h("textarea", { id: "f-note", class: "input textarea", rows: "2", placeholder: "Ghi chú (không bắt buộc)" }, old?.note ?? "");
     autoGrow(noteInput);
@@ -122,6 +123,7 @@ export function openResultModal({ book, test, skill = "L", task = 2, entry, onSa
       await saveAttempt({
         book, test, skill: state.skill, task: state.skill === "W" ? state.task : null,
         rawScore, band, date: dateInput.value, durationMin, note: noteInput.value.trim(),
+        submissionId: state.skill === "W" ? submissionId : null,
       });
     } catch (err) {
       return fail(err.message || "Không lưu được.");

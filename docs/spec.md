@@ -82,6 +82,7 @@ design/stitch/              # export Stitch: ảnh + HTML tham chiếu, KHÔNG i
 | `#/practice` | Cambridge Practice · Tiến độ | | | |
 | `#/practice/notebooks` | Cambridge Practice · Notebook & tài liệu | | | |
 | `#/practice/:book/:test` | mở panel chi tiết test | drawer phải dạng overlay | drawer | bottom sheet |
+| `#/practice/:book/:test/:skill` | Luyện đề trong app, `skill` = L \| R \| W (toàn màn, ẩn sidebar và FAB; mục 5.9) | 2 cột | tab Đề \| Phiếu | tab Đề \| Phiếu |
 | `#/warmup` | Khởi động 15' (toàn màn, ẩn sidebar) | | | |
 | `#/ai/writing`, `#/ai/speaking` | Writing & Speaking AI | 2 cột | 1–2 cột | 1 cột |
 | `#/vocab` | Vocabulary Bank | bảng + panel | bảng + panel overlay | thẻ + bottom sheet |
@@ -103,7 +104,7 @@ Tab đáy iPhone: Dashboard · Cambridge · AI · Từ vựng · Lỗi. Vùng b�
 - 4 thẻ tóm tắt (giống Dashboard nhưng theo test).
 - Ma trận Cam 19 → Cam 10 × Test 1–4, mỗi ô test có 4 ô con L/R/W/S tô theo band: chưa làm (xám), <6.0 (cam), 6.0–6.5 (navy), ≥7.0 (teal). Ô "Đang xem" viền liền, ô "Tiếp theo" viền đứt. Cột cuối: x/4 test.
 - Lọc: Tất cả / Chưa làm / Cần cải thiện (<6.5); kỹ năng L/R/W/S.
-- Bấm ô → panel chi tiết **overlay** (không đẩy ma trận): 4 kỹ năng với điểm, ngày, phút, nút Sửa; Writing có "Xem bài sửa (Claude)"; danh sách từ và lỗi của test; nút "+ Ghi nhanh cho test này"; **nút Mở đề PDF / Mở audio** (mục 6.10).
+- Bấm ô → panel chi tiết **overlay** (không đẩy ma trận): 4 kỹ năng với điểm, ngày, phút, nút Sửa; Writing có "Xem bài sửa (Claude)"; danh sách từ và lỗi của test; nút "+ Ghi nhanh cho test này"; **nút Mở đề PDF / Mở audio** (mục 6.10); ba nút **Luyện Listening / Reading / Writing** mở màn Luyện đề (mục 5.9).
 - Modal Nhập kết quả: tab Listening/Reading, số câu đúng /40 → tự hiện band; ngày; phút; ghi chú.
 - **Bắt buộc sửa:** bỏ tag "Academic Edition", bỏ banner "Đang xem" ở đáy, nhãn "Claude".
 
@@ -157,6 +158,20 @@ Tổng kết: số từ nhớ (x/y), số lỗi sửa đúng (x/5), danh sách t
 - Thẻ lỗi: ×N, nhóm, trạng thái, nguồn + ngày; câu sai → câu đúng; mở rộng: quy tắc tiếng Việt, ví dụ đúng, lịch sử các lần gặp (link về test/bài viết/khởi động).
 - Cột phải: bài tập Claude tạo từ lỗi đã chọn (điền/sửa/viết lại), chấm, đề xuất "Đánh dấu đã khắc phục".
 - **Bắt buộc sửa:** bỏ "GRA Milestone Achieved", "Ví dụ chuẩn Band 8.0+", "Trí tuệ nhân tạo Claude".
+
+### 5.9 Luyện đề trong app
+Mở từ panel test (mục 5.2) bằng ba nút **Luyện Listening / Reading / Writing**, route `#/practice/:book/:test/:skill`. Toàn màn: ẩn sidebar và FAB, phím `N` vẫn mở Ghi nhanh. Nút **← Thoát** về panel test.
+- **Bố cục:** ≥1024px hai cột (trái: đề, phải: phiếu trả lời hoặc ô viết); <1024px hai tab **Đề | Phiếu**. Thanh audio (Listening) nằm trên cả hai tab.
+- **Nguồn đề, hai cách** (tab chọn nguồn ở cột Đề):
+  - *File trên máy:* `<input type=file>` nhận một PDF và nhiều file audio (iPad chọn được từ Tệp / Google Drive). File chỉ được đọc trong phiên bằng `URL.createObjectURL`, **không** lưu vào IndexedDB hay localStorage, không đồng bộ, không gửi đi đâu; chỉ nhớ **tên file** để gợi ý lần sau. PDF xem bằng trình xem PDF của trình duyệt (không thêm thư viện).
+  - *Link Drive đã lưu* (mục 6.10): nhúng khung xem `https://drive.google.com/file/d/ID/preview`. Không phát hiện được khung bị chặn (Safari), nên luôn có dòng hướng dẫn chuyển sang file trên máy.
+  - Nút **Mở PDF trong tab mới** luôn có (file trên máy hoặc link Drive).
+- **Audio** (chỉ file trên máy): trình phát HTML5; 2–4 file xếp theo tên (số tự nhiên) thành Part 1–4, chọn bằng một ô select; nút −5s / Phát / +5s; phím Space phát/dừng, ←/→ tua 5s, chỉ khi không đang gõ trong ô, select hoặc khi chưa có sheet/modal mở.
+- **Đồng hồ:** Listening 30', Reading 60', Writing Task 1 20' / Task 2 40'; ô "Giới hạn" chỉnh được, có Tạm dừng. Hết giờ: khoá phiếu / ô viết và hiện "Hết giờ" (tăng giới hạn thì mở khoá lại); vẫn nộp bài và chấm được.
+- **Phiếu L/R:** 40 ô nhóm theo Part (Listening 1–10, 11–20, 21–30, 31–40) hoặc Passage (Reading 1–13, 14–26, 27–40); Enter / Tab sang ô kế. Nháp (đáp án, thời gian đã dùng, giới hạn) tự lưu mỗi 5 giây và khi rời trang, lưu ở localStorage theo khoá `book-test-skill`; tải lại không mất; xoá sau khi lưu attempt thành công.
+- **Nộp bài → chế độ chấm:** mỗi ô có Đúng / Sai (phím 1 / 2 khi đang chọn một dòng; bấm xong nhảy sang dòng kế). Người học tự dò đáp án trong đề của họ; app không có đáp án. Cạnh nút **Lưu điểm** luôn hiện "Đúng x/40 · Còn n ô chưa chấm" (ô chưa chấm tính là sai). Lưu điểm = quy đổi band bằng `bands.js`, ghi attempt (rawScore, band, durationMin, date) cùng quy tắc với modal Nhập kết quả (mục 5.2: một attempt cho mỗi test và kỹ năng, đã có điểm thì hỏi xác nhận ghi đè), rồi mở lại panel test. Câu sai có nút **Ghi lỗi/từ** mở Ghi nhanh với nguồn {book, test, skill, part} của đúng câu đó.
+- **Writing:** chọn Task 1 / Task 2; ô đề bài (người học tự gõ hoặc dán, chỉ lưu trên máy); ô viết có đếm từ, cảnh báo dưới 150 (Task 1) / 250 (Task 2). Tự lưu nháp vào `submissions` (`status: draft`, `source: {book, test, task}`), kèm một bản sao văn bản cạnh đồng hồ ở localStorage để tải lại không mất. **Xong** lưu bài (`doneAt`, status vẫn `draft` cho tới khi Claude chấm ở Bước 8) rồi mở modal Nhập kết quả để nhập band tay; attempt Writing gắn `submissionId`.
+- **Bản quyền:** không có nội dung đề, đáp án, PDF hay audio trong dữ liệu hay repo. Dữ liệu duy nhất là đáp án người học gõ.
 
 ## 6. Quy tắc nghiệp vụ
 
@@ -216,7 +231,7 @@ App không lưu toàn văn đề, audio, đáp án hay bài đọc. Chỉ lưu: 
 
 ### 6.10 File PDF / audio Cam 10–19 của người học
 - **Giai đoạn 1 (mặc định):** bảng `tests` lưu link do người học dán: `pdfUrl`, `audioUrls[]` (thường là link file trong Google Drive riêng, chế độ riêng tư). Panel chi tiết test có nút **Mở đề PDF** và **Mở audio Part 1–4** (mở tab mới / app Drive). Có màn "Cài link nhanh" để dán link cho nhiều test.
-- **Giai đoạn 3 (sau MVP, tuỳ chọn):** màn Luyện đề trong app: chọn file PDF/MP3 từ máy bằng `<input type=file>`, xem PDF bằng trình xem của trình duyệt, phát audio có tua ±5s, đồng hồ 30/60', hết giờ mở modal nhập điểm. File chỉ đọc trong phiên, không lưu vào IndexedDB, không đồng bộ.
+- **Giai đoạn 2 (Bước 6b, đã duyệt):** màn Luyện đề trong app (mục 5.9): chọn file PDF/audio từ máy bằng `<input type=file>` hoặc dùng khung xem Drive từ link đã lưu, xem PDF bằng trình xem của trình duyệt, phát audio có tua ±5s, đồng hồ, phiếu 40 ô, tự chấm Đúng/Sai. File chỉ đọc trong phiên, không lưu vào IndexedDB, không đồng bộ. Service worker không cache `blob:` và `drive.google.com`.
 - Tuyệt đối không commit PDF/MP3 vào repo hay đưa lên host.
 
 ## 7. Dữ liệu
@@ -239,7 +254,9 @@ Mọi bản ghi: `id` (UUID), `createdAt`, `updatedAt`, `deleted` (tombstone cho
 
 So với bản thiết kế: bỏ `materials` (Learning Materials đã gộp vào Cambridge Practice, nguồn đã có trong `source`); thêm `attempts`, `tests`, `sessions`; `vocab.examples` đổi thành `contexts[]` có nguồn.
 
-LocalStorage: theme, aiMode (manual/api), proxyUrl, accessCode (Phase 2b), lastBackupAt, bookOrder.
+`submissions` bổ sung: `doneAt` (bài Writing đã bấm Xong; `status` vẫn `draft` cho tới khi Claude chấm), `source.task` (1 hoặc 2). `attempts.submissionId` trỏ tới bài Writing đã viết trong màn Luyện đề.
+
+LocalStorage: nháp Luyện đề `elh.run.<book>-<test>-<skill>` (Writing thêm `-<task>`) và tên file đã chọn `elh.runFiles.<book>-<test>` (chỉ tên, không có file), theme, aiMode (manual/api), proxyUrl, accessCode (Phase 2b), lastBackupAt, bookOrder.
 
 ### 7.2 Backup / Drive
 File `elh-data.json` (Drive appDataFolder) và `elh-backup-YYYY-MM-DD.json` cùng định dạng:
@@ -320,9 +337,9 @@ Quy tắc chung: số, nút, tag dùng `white-space: nowrap`; tiêu đề thẻ 
 | 4 | Ghi nhanh + Vocabulary Bank + Grammar Notebook (chưa AI) | Ghi 10 từ/lỗi trong một buổi, lọc theo Cam/Test |
 | 5 | Khởi động 15' + `leitner.js` | Một buổi khởi động đủ 4 dạng bài, hộp cập nhật đúng |
 | 6 | Dashboard | Số liệu khớp với dữ liệu thật |
+| 6b | Luyện đề trong app (mục 5.9) | Laptop: chọn PDF + 4 audio, làm Listening, nộp, chấm → ô L trên ma trận đúng band; tải lại giữa chừng không mất đáp án; 390px dùng được bằng tab Đề/Phiếu |
 | 7 | Đồng bộ Google Drive | Sửa trên iPhone, mở Windows thấy trong ≤ 1 phút |
 | 8 | AI copy/paste (2a): Writing, Speaking, enrich, bài tập | Dán JSON hợp lệ → khay lưu → sổ cập nhật |
 | 9 | AI qua proxy (2b) | Không có key trong mã nguồn; chấm Task 2 < 60s |
-| 10 | (Tuỳ chọn) Màn luyện đề với file trên máy | |
 
 Mỗi bước: chạy thử trên Chrome desktop + Safari iOS, rồi mới sang bước sau.

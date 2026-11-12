@@ -1226,6 +1226,283 @@ try {
     await sleep(300);
     await shot("m-modal.png");
     console.log("modal overflow:", await evalJs(`(() => { const r = document.querySelector('dialog.modal').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })()`));
+  } else if (scenario.startsWith("run-")) {
+    // In-app practice screen (step 6b). The PDF and the audio are made here, in a temp folder, and are never committed.
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const KEYS = { Enter: { code: "Enter", vk: 13, text: "\r" }, Tab: { code: "Tab", vk: 9 }, Escape: { code: "Escape", vk: 27 }, ArrowLeft: { code: "ArrowLeft", vk: 37 }, ArrowRight: { code: "ArrowRight", vk: 39 }, " ": { code: "Space", vk: 32, text: " " }, 1: { code: "Digit1", vk: 49, text: "1" }, 2: { code: "Digit2", vk: 50, text: "2" } };
+    const press = async (key, n = 1) => { const k = KEYS[key]; for (let i = 0; i < n; i++) { await send("Input.dispatchKeyEvent", { type: "keyDown", key, code: k.code, windowsVirtualKeyCode: k.vk, text: k.text }); await send("Input.dispatchKeyEvent", { type: "keyUp", key, code: k.code, windowsVirtualKeyCode: k.vk }); } };
+    const pressChar = async (c) => { await send("Input.dispatchKeyEvent", { type: "keyDown", key: c, code: "Key" + c.toUpperCase(), windowsVirtualKeyCode: c.toUpperCase().charCodeAt(0), text: c }); await send("Input.dispatchKeyEvent", { type: "keyUp", key: c, code: "Key" + c.toUpperCase(), windowsVirtualKeyCode: c.toUpperCase().charCodeAt(0) }); };
+    const typeText = (t) => send("Input.insertText", { text: t });
+    const click = (sel) => evalJs(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.click(); return true; })()`);
+    const focus = (sel) => evalJs(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.focus(); return document.activeElement === e; })()`);
+    const text = (sel) => evalJs(`document.querySelector(${JSON.stringify(sel)})?.textContent ?? null`);
+    const count = (sel) => evalJs(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
+    const dbAll = (store) => evalJs(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; })`);
+    const ls = (key) => evalJs(`localStorage.getItem(${JSON.stringify(key)})`);
+    const reload = async () => { await send("Page.reload"); await sleep(1300); };
+    const seed = async (w = 1280, h = 800) => {
+      await go(BASE + "?dev=1#/dev", w, h);
+      await waitFor(`document.querySelector('[data-act=seed]')`);
+      await click("[data-act=seed]");
+      await sleep(1500);
+    };
+    const runReady = (what) => waitFor(`document.querySelector('${what}')`, 8000);
+    const pdfOn = (dir) => { const p = join(dir, "Cam 15 Test 1.pdf"); writeFileSync(p, "%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"); return p; };
+    const wavOn = (dir, name, seconds = 20) => { // silent 8 kHz 8-bit mono WAV
+      const rate = 8000; const n = rate * seconds; const buf = Buffer.alloc(44 + n, 128);
+      buf.write("RIFF", 0); buf.writeUInt32LE(36 + n, 4); buf.write("WAVEfmt ", 8); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22);
+      buf.writeUInt32LE(rate, 24); buf.writeUInt32LE(rate, 28); buf.writeUInt16LE(1, 32); buf.writeUInt16LE(8, 34); buf.write("data", 36); buf.writeUInt32LE(n, 40);
+      const p = join(dir, name); writeFileSync(p, buf); return p;
+    };
+    const win = (p) => p.replaceAll("/", "\\");
+    const pickFiles = async (paths) => {
+      const doc = await send("DOM.getDocument", { depth: 1 });
+      const q = await send("DOM.querySelector", { nodeId: doc.result.root.nodeId, selector: ".source-pane input[type=file]" });
+      await send("DOM.setFileInputFiles", { files: paths.map(win), nodeId: q.result.nodeId });
+      await sleep(600);
+    };
+    const fakeDir = mkdtempSync(join(tmpdir(), "elh-fake-exam-"));
+    const clockText = () => text(".run-time");
+    const answers = (n) => evalJs(`[...document.querySelectorAll('.ans')].slice(0, ${n}).map(e => e.value)`);
+
+    if (scenario === "run-listening") {
+      await seed();
+      const before = (await dbAll("attempts")).filter((a) => a.book === 15 && a.test === 1 && a.skill === "L");
+      console.log("existing Cam 15 Test 1 Listening attempt in sample data:", before.length ? JSON.stringify({ raw: before[0].rawScore, band: before[0].band }) : "none");
+
+      // Panel -> button
+      await go(BASE + "#/practice/15/1");
+      await waitFor(`document.querySelector('.run-links a')`);
+      ok("panel has three practice buttons", (await count(".run-links a")) === 3 && (await evalJs(`[...document.querySelectorAll('.run-links a')].map(a => a.textContent).join('|')`)) === "Luyện Listening|Luyện Reading|Luyện Writing");
+      await evalJs(`[...document.querySelectorAll('.run-links a')][0].click()`);
+      ok("route opened", await runReady(".run") && (await evalJs(`location.hash`)) === "#/practice/15/1/L");
+      ok("nav and FAB are hidden", await evalJs(`getComputedStyle(document.querySelector('.nav')).display === 'none' && getComputedStyle(document.querySelector('.fab')).display === 'none'`));
+      ok("two columns on a laptop (source left, sheet right), no tabs", await evalJs(`(() => { const a = document.querySelector('.run-source').getBoundingClientRect(), b = document.querySelector('.run-sheet').getBoundingClientRect(); return a.right <= b.left + 1 && a.top === b.top && getComputedStyle(document.querySelector('.run-tabs')).display === 'none'; })()`));
+      ok("40 boxes grouped 4 x 10 (Part 1..4)", (await count(".ans")) === 40 && (await evalJs(`[...document.querySelectorAll('.sheet-group')].map(g => g.querySelectorAll('.ans').length).join(',')`)) === "10,10,10,10" && (await evalJs(`document.querySelector('.sheet-group-title').textContent`)) === "Part 1 · câu 1–10");
+      ok("clock starts at 30:00 for Listening", /^(30:00|29:5\d)$/.test(await clockText()), await clockText());
+
+      // Drive link: the preview frame, and the link that always opens a new tab
+      await evalJs(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction('tests', 'readwrite'); tx.objectStore('tests').put({ key: '15-1', book: 15, test: 1, pdfUrl: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing', audioUrls: ['https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0AAAAAA/view', '', '', ''], pinned: false, note: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deleted: false }); tx.oncomplete = () => res(true); }; })`);
+      await reload(); // the screen reads the saved links when it opens
+      await runReady(".run .ans");
+      await click(".source-modes [data-mode=drive]");
+      ok("Drive mode embeds the /preview frame", (await evalJs(`document.querySelector('.run-pdf')?.src`)) === "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/preview");
+      ok("Drive mode: 'Mở PDF trong tab mới' opens the saved link; fallback note and audio link present", (await evalJs(`document.querySelector('[data-role=open-pdf]').getAttribute('href')`)).startsWith("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view") && (await evalJs(`document.querySelector('[data-role=open-pdf]').target`)) === "_blank" && (await text("[data-role=drive-note]")).includes("Chọn file trên máy") && (await count(".source-body .link-buttons a")) === 1);
+      await click(".source-modes [data-mode=file]");
+      ok("file mode: the 'new tab' link is always there (disabled until a PDF is picked)", (await count("[data-role=open-pdf]")) === 1 && (await evalJs(`document.querySelector('[data-role=open-pdf]').getAttribute('aria-disabled')`)) === "true");
+
+      // Pick the PDF + 4 audio files (in a scrambled order: they must come out as Part 1..4)
+      const pdf = pdfOn(fakeDir);
+      const wavs = ["Track 10.wav", "Track 2.wav", "Track 1.wav", "Track 3.wav"].map((n) => wavOn(fakeDir, n));
+      await pickFiles([wavs[0], pdf, wavs[1], wavs[2], wavs[3]]);
+      ok("PDF shown from a blob: URL", (await evalJs(`document.querySelector('.run-pdf')?.src`)).startsWith("blob:"));
+      ok("'Mở PDF trong tab mới' points at the blob and opens a new tab", (await evalJs(`document.querySelector('[data-role=open-pdf]').href`)).startsWith("blob:") && (await evalJs(`document.querySelector('[data-role=open-pdf]').target`)) === "_blank");
+      ok("4 audio tracks in natural name order as Part 1..4", (await evalJs(`[...document.querySelectorAll('.run-track option')].map(o => o.textContent).join(' | ')`)) === "Part 1 · Track 1.wav | Part 2 · Track 2.wav | Part 3 · Track 3.wav | Part 4 · Track 10.wav");
+      ok("nothing was stored from the files (IndexedDB/localStorage hold names only)", !(await evalJs(`JSON.stringify(Object.entries(localStorage)).includes('blob:') || JSON.stringify(Object.entries(localStorage)).includes('data:')`)) && (await ls("elh.runFiles.15-1")).includes("Cam 15 Test 1.pdf"));
+
+      // Audio keys
+      await waitFor(`document.querySelector('.run-audio-el').readyState >= 1`, 8000);
+      await evalJs(`document.activeElement.blur(); true`);
+      await press(" ");
+      ok("Space plays", await waitFor(`!document.querySelector('.run-audio-el').paused`, 3000));
+      await press(" ");
+      ok("Space pauses", await waitFor(`document.querySelector('.run-audio-el').paused`, 3000));
+      await evalJs(`document.querySelector('.run-audio-el').currentTime = 10; true`);
+      await press("ArrowRight");
+      ok("ArrowRight seeks +5s", await evalJs(`Math.abs(document.querySelector('.run-audio-el').currentTime - 15) < 0.3`), await evalJs(`document.querySelector('.run-audio-el').currentTime`));
+      await press("ArrowLeft", 2);
+      ok("ArrowLeft seeks -5s (twice)", await evalJs(`Math.abs(document.querySelector('.run-audio-el').currentTime - 5) < 0.3`));
+      await click("[data-role=fwd]");
+      await click("[data-role=back]");
+      await click("[data-role=back]");
+      ok("the -5s / +5s buttons seek too and never go below 0", await evalJs(`document.querySelector('.run-audio-el').currentTime === 0`));
+      await focus("#ans-1");
+      await typeText("n");
+      await press(" ");
+      await press("ArrowRight");
+      ok("typing in a box: letters, Space and arrows do not touch the audio", await evalJs(`document.querySelector('.run-audio-el').paused && document.querySelector('.run-audio-el').currentTime === 0 && document.querySelector('#ans-1').value.startsWith('n')`));
+      await evalJs(`document.querySelector('#ans-1').value = ''; document.querySelector('#ans-1').dispatchEvent(new Event('input', {bubbles:true})); true`);
+
+      // Type 12 answers with Enter, then reload at once (the pagehide flush must keep them)
+      await focus("#ans-1");
+      for (let i = 1; i <= 12; i++) { await typeText(`a${i}`); await press("Enter"); }
+      ok("Enter moves to the next box", await evalJs(`document.activeElement.id === 'ans-13'`), await evalJs(`document.activeElement.id`));
+      await reload();
+      await runReady(".run .ans");
+      const a12 = await answers(13);
+      ok("reload right after typing: the 12 answers are still there", a12.slice(0, 12).every((v, i) => v === `a${i + 1}`) && a12[12] === "", JSON.stringify(a12));
+      const el1 = JSON.parse(await ls("elh.run.15-1-L")).elapsedSec;
+      ok("elapsed time was kept too", el1 > 0, String(el1));
+      ok("after the reload the file is gone (as expected) and the remembered names are offered", (await count(".run-pdf")) === 0 && (await text("[data-role=remembered]")).includes("Cam 15 Test 1.pdf"));
+
+      // Type the rest and wait for the 5 s autosave without reloading
+      await shot("run-d-answer.png");
+      await focus("#ans-13");
+      for (let i = 13; i <= 40; i++) { await typeText(`a${i}`); await press("Enter"); }
+      await sleep(5600);
+      const saved = JSON.parse(await ls("elh.run.15-1-L"));
+      ok("autosave (every 5 s) holds all 40 answers", Object.keys(saved.answers).length === 40 && saved.answers["40"] === "a40");
+      ok("after the last box, Enter lands on the submit button", await evalJs(`document.activeElement.dataset.role === 'action'`));
+
+      // Pause
+      await click("[data-role=pause]");
+      const t1 = await clockText();
+      await sleep(1500);
+      ok("pause stops the clock and says so", (await clockText()) === t1 && (await text(".run-time-label")) === "Đang tạm dừng");
+      await click("[data-role=pause]");
+      await sleep(1300);
+      ok("resume runs it again", (await clockText()) !== t1);
+
+      // Submit -> grading
+      await click("[data-role=action]");
+      ok("submit with every box filled goes straight to grading (no question)", await runReady(".grade-row") && (await count("dialog.modal")) === 0 && (await count(".grade-row")) === 40);
+      ok("grading shows the unmarked count next to the save button", (await text(".run-info")) === "Đúng 0/40 · Còn 40 ô chưa chấm" && (await text("[data-role=action]")) === "Lưu điểm");
+      await focus(".grade-row[data-n='1']");
+      for (let i = 1; i <= 31; i++) await press("1");
+      ok("key 1 marks 'Đúng' and moves to the next row", (await text(".run-info")) === "Đúng 31/40 · Còn 9 ô chưa chấm" && (await evalJs(`document.activeElement.dataset.n`)) === "32");
+      for (let i = 32; i <= 40; i++) await press("2");
+      ok("key 2 marks 'Sai'; all 40 marked", (await text(".run-info")) === "Đúng 31/40 · Đã chấm đủ");
+      ok("wrong answers get 'Ghi lỗi/từ', right ones do not", (await count(".grade-capture")) === 9);
+      await shot("run-d-grade.png");
+
+      // Quick capture from a wrong answer: question 33 is in Part 4
+      await click(".grade-row[data-n='33'] .grade-capture");
+      await waitFor(`document.querySelector('dialog.modal[open], dialog[open]')`, 5000);
+      await sleep(300);
+      const src = await evalJs(`({ book: document.querySelector('#qc-book').value, test: document.querySelector('#qc-test').value, skill: document.querySelector('#qc-skill').value, part: document.querySelector('#qc-part').value })`);
+      ok("quick capture opens with the source of that question (Cam 15, Test 1, Listening, Part 4)", src.book === "15" && src.test === "1" && src.skill === "L" && src.part === "4", JSON.stringify(src));
+      await press("Escape");
+      await sleep(400);
+      // N still opens quick capture on this screen
+      await evalJs(`document.activeElement.blur(); true`);
+      await pressChar("n");
+      ok("the N key still opens quick capture on the practice screen", await waitFor(`document.querySelector('#qc-word, #qc-wrong')`, 3000));
+      await press("Escape");
+      await sleep(400);
+
+      // Save the score
+      await click("[data-role=action]");
+      if (before.length) {
+        ok("an old score exists: the same 'overwrite?' question as editing, and Cancel keeps it", await waitFor(`document.querySelector('dialog.modal[open]')?.textContent.includes('ghi đè')`, 4000));
+        await click("dialog.modal .btn-text");
+        await sleep(500);
+        ok("cancelled: still on the grading screen, old score unchanged", (await evalJs(`location.hash`)) === "#/practice/15/1/L" && (await dbAll("attempts")).find((a) => a.book === 15 && a.test === 1 && a.skill === "L").rawScore === before[0].rawScore);
+        await click("[data-role=action]");
+        await waitFor(`document.querySelector('dialog.modal[open]')`, 4000);
+        await click("dialog.modal .btn-danger");
+      }
+      ok("saved: back on the test panel", await waitFor(`location.hash === '#/practice/15/1' && document.querySelector('.detail')`, 8000));
+      const att = (await dbAll("attempts")).filter((a) => a.book === 15 && a.test === 1 && a.skill === "L");
+      ok("attempt: rawScore 31, band 7.0, minutes >= 1, today", att.length === 1 && att[0].rawScore === 31 && att[0].band === 7 && att[0].durationMin >= 1 && att[0].date === new Date().toLocaleDateString("sv-SE"), JSON.stringify(att[0]));
+      ok("the draft is gone after the attempt was saved", (await ls("elh.run.15-1-L")) === null);
+      await sleep(400);
+      const cell = await evalJs(`(() => { const b = [...document.querySelectorAll('.test-cell')].find(x => x.getAttribute('aria-label').startsWith('Cam 15 Test 1.')); return b ? b.getAttribute('aria-label') : null; })()`);
+      ok("matrix cell for Cam 15 Test 1 shows Listening 7.0", /Listening[^,;.]*7\.0|L[^,;.]*7\.0/.test(cell ?? ""), cell);
+      ok("panel shows Listening 31/40", (await text(".detail")).includes("31/40"));
+    } else if (scenario === "run-listening-m") {
+      await seed(390, 844);
+      await go(BASE + "#/practice/15/1/L", 390, 844);
+      await runReady(".run .ans");
+      ok("390px: tabs 'Đề | Phiếu' are shown, source first, sheet hidden", await evalJs(`getComputedStyle(document.querySelector('.run-tabs')).display !== 'none' && getComputedStyle(document.querySelector('.run-source')).display !== 'none' && getComputedStyle(document.querySelector('.run-sheet')).display === 'none'`));
+      ok("nav and FAB hidden on the phone too", await evalJs(`getComputedStyle(document.querySelector('.nav')).display === 'none' && getComputedStyle(document.querySelector('.fab')).display === 'none'`));
+      const pdf = pdfOn(fakeDir);
+      await pickFiles([pdf, wavOn(fakeDir, "m1.wav"), wavOn(fakeDir, "m2.wav")]);
+      ok("audio bar stays visible while the tab is Đề", await evalJs(`!document.querySelector('.run-audio').hidden`));
+      await evalJs(`document.querySelector('.run-tabs [data-tab=sheet]').click(); true`);
+      ok("tab Phiếu: sheet visible, source hidden, audio bar still there", await evalJs(`getComputedStyle(document.querySelector('.run-sheet')).display !== 'none' && getComputedStyle(document.querySelector('.run-source')).display === 'none' && !document.querySelector('.run-audio').hidden`));
+      await shot("run-m-sheet.png");
+      ok("no horizontal overflow (sheet)", await evalJs(`document.documentElement.scrollWidth <= innerWidth`), await evalJs(`document.documentElement.scrollWidth + ' vs ' + innerWidth`));
+      ok("answer boxes are at least 44px tall", await evalJs(`document.querySelector('.ans').getBoundingClientRect().height >= 44`));
+      await focus("#ans-1");
+      await typeText("river");
+      await press("Enter");
+      await evalJs(`document.querySelector('.run-tabs [data-tab=source]').click(); true`);
+      await shot("run-m-source.png");
+      ok("no horizontal overflow (source)", await evalJs(`document.documentElement.scrollWidth <= innerWidth`));
+      await evalJs(`document.querySelector('[data-role=action]').click(); true`);
+      ok("submit with blanks asks first", await waitFor(`document.querySelector('dialog.modal[open]')?.textContent.includes('Còn 39 câu chưa điền')`, 4000));
+      await click("dialog.modal .btn-primary");
+      await runReady(".grade-row");
+      await shot("run-m-grade.png");
+      ok("grading at 390px: no overflow, buttons >= 44px", await evalJs(`document.documentElement.scrollWidth <= innerWidth && document.querySelector('.grade-btn').getBoundingClientRect().height >= 44`));
+    } else if (scenario === "run-clock") {
+      await seed();
+      await go(BASE + "#/practice/15/2/R");
+      await runReady(".run .ans");
+      ok("Reading: 3 passages 13 / 13 / 14", (await evalJs(`[...document.querySelectorAll('.sheet-group')].map(g => g.querySelectorAll('.ans').length).join(',')`)) === "13,13,14" && (await evalJs(`document.querySelector('.sheet-group-title').textContent`)) === "Passage 1 · câu 1–13");
+      ok("Reading clock starts at 60:00", /^(60:00|59:5\d)$/.test(await clockText()), await clockText());
+      await focus("#ans-1");
+      await typeText("true");
+      await evalJs(`document.activeElement.blur(); true`);
+      // Leave the screen (it saves the draft), fake an almost finished attempt (59.2 s of a 1-minute limit), come back
+      await go(BASE + "#/practice");
+      await sleep(600);
+      await evalJs(`(() => { const d = JSON.parse(localStorage.getItem('elh.run.15-2-R')); d.limitMin = 1; d.elapsedSec = 59.2; localStorage.setItem('elh.run.15-2-R', JSON.stringify(d)); return true; })()`);
+      await go(BASE + "#/practice/15/2/R");
+      await runReady(".run .ans");
+      ok("restored: limit 1 minute and the typed answer", (await evalJs(`document.querySelector('.run-limit-input').value`)) === "1" && (await evalJs(`document.querySelector('#ans-1').value`)) === "true");
+      ok("time is up: 'Hết giờ' shown and the sheet is locked", await waitFor(`document.querySelector('.run-timeup') && !document.querySelector('.run-timeup').hidden && document.querySelector('.run-time-label').textContent === 'Hết giờ'`, 4000) && await evalJs(`[...document.querySelectorAll('.ans')].every(e => e.readOnly) && document.querySelector('.run').dataset.locked === 'true'`));
+      ok("clock shows 00:00 and the pause button is gone", (await clockText()) === "00:00" && await evalJs(`document.querySelector('[data-role=pause]').hidden`));
+      await typeText("zzz");
+      ok("typing into a locked box changes nothing", (await evalJs(`document.querySelector('#ans-2').value`)) === "");
+      await evalJs(`(() => { const i = document.querySelector('.run-limit-input'); i.value = '5'; i.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+      await sleep(700);
+      ok("raising the limit unlocks it again", await evalJs(`[...document.querySelectorAll('.ans')].every(e => !e.readOnly) && document.querySelector('.run-timeup').hidden`));
+      await click("[data-role=action]");
+      ok("submit with blanks asks first, Cancel stays on the sheet", await waitFor(`document.querySelector('dialog.modal[open]')`, 3000));
+      await click("dialog.modal .btn-text");
+      await sleep(400);
+      ok("still answering", (await evalJs(`document.querySelector('.run').dataset.phase`)) === "answer");
+      await click(".run-exit");
+      await sleep(500);
+      ok("Thoát goes back to the test panel and keeps the draft", (await evalJs(`location.hash`)) === "#/practice/15/2" && (await ls("elh.run.15-2-R")) !== null);
+    } else if (scenario === "run-writing") {
+      await seed();
+      await go(BASE + "#/practice/15/1/W");
+      await runReady(".write-text");
+      ok("Writing opens on Task 2 with a 40:00 clock", (await evalJs(`document.querySelector('.seg [data-task="2"]').getAttribute('aria-pressed')`)) === "true" && /^(40:00|39:5\d)$/.test(await clockText()), await clockText());
+      await click(".seg [data-task='1']");
+      await sleep(600);
+      ok("Task 1: 20:00 clock", /^(20:00|19:5\d)$/.test(await clockText()), await clockText());
+      ok("empty text warns about the 150-word minimum", (await text(".write-count")).includes("Cần ít nhất 150 từ") && (await evalJs(`document.querySelector('.write-count').dataset.warn`)) === "true");
+      await focus("#w-prompt");
+      await typeText("The chart shows rainfall in three cities.");
+      await focus("#w-text");
+      await typeText("word ".repeat(100));
+      ok("100 words: count and shortfall", (await text(".write-count")) === "Số từ: 100 · Cần ít nhất 150 từ, còn thiếu 50", await text(".write-count"));
+      await typeText("word ".repeat(50));
+      ok("150 words: no warning", (await evalJs(`document.querySelector('.write-count').dataset.warn`)) === "false" && (await text(".write-count")).startsWith("Số từ: 150"));
+      await sleep(5800);
+      let subs = (await dbAll("submissions")).filter((x) => x.kind === "writing" && x.source?.book === 15 && x.source?.test === 1 && x.source?.task === 1);
+      ok("autosaved to submissions (status draft, source, no doneAt)", subs.length === 1 && subs[0].status === "draft" && !subs[0].doneAt && subs[0].wordCount === 150 && subs[0].prompt.startsWith("The chart"), JSON.stringify(subs.map((x) => ({ s: x.status, w: x.wordCount }))));
+      await typeText("extra");
+      await reload();
+      await runReady(".write-text");
+      ok("reload: Task 2 is shown again; switching to Task 1 restores the text", true);
+      await click(".seg [data-task='1']");
+      await sleep(900);
+      ok("the text typed just before the reload is back (151 words) with the prompt", (await text(".write-count")).startsWith("Số từ: 151") && (await evalJs(`document.querySelector('#w-prompt').value`)).startsWith("The chart"));
+      subs = (await dbAll("submissions")).filter((x) => x.kind === "writing" && x.source?.test === 1 && x.source?.task === 1);
+      ok("no duplicate record was created", subs.length === 1, String(subs.length));
+      await click("[data-role=action]");
+      ok("'Xong' opens the same result modal, on Writing Task 1", await waitFor(`document.querySelector('dialog.modal[open] #f-band')`, 5000) && (await evalJs(`document.querySelector('dialog.modal[open]').textContent.includes('Writing Task 1')`)));
+      ok("minutes are prefilled from the clock", Number(await evalJs(`document.querySelector('#f-min').value`)) >= 1);
+      subs = (await dbAll("submissions")).filter((x) => x.kind === "writing" && x.source?.test === 1 && x.source?.task === 1);
+      ok("submission finished: doneAt set, status still draft", subs.length === 1 && Boolean(subs[0].doneAt) && subs[0].status === "draft");
+      await evalJs(`(() => { const i = document.querySelector('#f-band'); i.value = '6.5'; i.dispatchEvent(new Event('input', {bubbles:true})); return true; })()`);
+      await click("#result-form button[type=submit], button[form=result-form]");
+      ok("band saved, back on the test panel", await waitFor(`location.hash === '#/practice/15/1' && document.querySelector('.detail')`, 8000));
+      const att = (await dbAll("attempts")).filter((a) => a.book === 15 && a.test === 1 && a.skill === "W" && a.task === 1);
+      ok("attempt W Task 1 band 6.5 linked to the submission", att.length === 1 && att[0].band === 6.5 && att[0].submissionId === subs[0].id, JSON.stringify(att[0]));
+      ok("the clock/text copy is cleared", (await ls("elh.run.15-1-W-1")) === null);
+      await go(BASE + "#/practice/15/1/W");
+      await runReady(".write-text");
+      await click(".seg [data-task='1']");
+      await sleep(700);
+      ok("a new piece starts blank after 'Xong'", (await evalJs(`document.querySelector('#w-text').value`)) === "");
+    }
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
   } else if (scenario === "layout") {
     for (const [w, h, n] of [[1280, 800, "d"], [900, 800, "t"], [390, 800, "m"]]) {
       await go(BASE + "#/", w, h);
