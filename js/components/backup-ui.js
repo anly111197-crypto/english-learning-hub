@@ -1,5 +1,5 @@
 // "Sao lưu JSON" / "Khôi phục" buttons, restore dialog and a small status line.
-import { exportAll, importData, readBackupFile, countRecords } from "../services/backup.js";
+import { exportAll, importData, readBackupFile, countRecords, hasLocalData } from "../services/backup.js";
 import { validateBackup } from "../services/merge.js";
 
 let statusEl = null;
@@ -20,7 +20,7 @@ export function showStatus(message, kind = "ok") {
 }
 
 // Resolves "replace" | "merge" | "cancel". The quick-capture FAB is hidden while the dialog is open.
-function askRestoreMode(fileName, recordCount) {
+function askRestoreMode(fileName, recordCount, willBackupFirst) {
   return new Promise((resolve) => {
     const dlg = document.createElement("dialog");
     dlg.className = "dialog";
@@ -30,7 +30,7 @@ function askRestoreMode(fileName, recordCount) {
         <p class="dialog-file nowrap"></p>
         <p><strong>Thay thế:</strong> xoá dữ liệu hiện tại, dùng đúng dữ liệu trong tệp.</p>
         <p><strong>Gộp:</strong> giữ cả hai, bản ghi nào mới hơn thì thắng.</p>
-        <p class="dialog-note">Dữ liệu hiện tại sẽ được tải xuống thành một tệp sao lưu trước khi thay đổi.</p>
+        <p class="dialog-note" hidden>Dữ liệu hiện tại sẽ được tải xuống thành một tệp sao lưu trước khi thay đổi.</p>
         <div class="dialog-actions">
           <button class="btn btn-primary" value="replace">Thay thế</button>
           <button class="btn btn-outline" value="merge">Gộp</button>
@@ -38,6 +38,7 @@ function askRestoreMode(fileName, recordCount) {
         </div>
       </form>`;
     dlg.querySelector(".dialog-file").textContent = `${fileName} · ${recordCount} bản ghi`;
+    dlg.querySelector(".dialog-note").hidden = !willBackupFirst; // only when there is data to protect
     dlg.addEventListener("close", () => {
       delete document.body.dataset.overlayOpen;
       dlg.remove();
@@ -53,7 +54,7 @@ async function handleRestore(file) {
   try {
     const json = await readBackupFile(file);
     const data = validateBackup(json); // clear error before asking anything
-    const mode = await askRestoreMode(file.name, countRecords(data));
+    const mode = await askRestoreMode(file.name, countRecords(data), await hasLocalData());
     if (mode === "cancel") return;
     const result = await importData(json, mode);
     document.dispatchEvent(new CustomEvent("elh:data-changed"));

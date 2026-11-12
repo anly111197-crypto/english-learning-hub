@@ -47,6 +47,12 @@ export async function readBackupFile(file) {
   return json;
 }
 
+// True when any store holds a record (tombstones included), i.e. an import would change real data.
+export async function hasLocalData() {
+  const data = await exportRaw();
+  return STORE_NAMES.some((s) => data[s].length > 0);
+}
+
 export function countRecords(data) {
   return STORE_NAMES.reduce((sum, s) => sum + (data[s] ?? []).filter((r) => !r.deleted).length, 0);
 }
