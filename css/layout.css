@@ -30,7 +30,7 @@
 .nav-label-short { display: none; }
 
 .app-main { min-width: 0; }
-.view { padding: var(--margin); max-width: 1280px; margin: 0 auto; }
+.view { padding: var(--margin); padding-bottom: var(--fab-clearance); max-width: 1280px; margin: 0 auto; }
 .view:focus { outline: none; }
 
 /* Desktop >= 1024: sidebar 260px with labels */

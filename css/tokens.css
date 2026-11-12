@@ -38,6 +38,7 @@
   --sidebar-w: 260px;
   --tabbar-h: 64px;
   --tap-min: 44px;
+  --fab-clearance: 96px;   /* FAB height 48 + its 24px offset + 24px gap, so the last row is never covered */
   --transition: 150ms ease;
   --shadow-fab: 0 6px 16px rgba(13, 35, 61, 0.28);
 }
