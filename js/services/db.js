@@ -1,23 +1,22 @@
 import { openDB } from "../vendor/idb.js";
-import { DB_NAME, SCHEMA_VERSION, STORE_DEFS } from "./schema.js";
+import { DB_NAME, STORE_DEFS } from "./schema.js";
+import { DB_VERSION, LOCAL_STORES } from "./local-schema.js";
+import { upgradeDb } from "./db-upgrade.js";
 
 let dbPromise = null;
 
 export function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, SCHEMA_VERSION, {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion, _newVersion, tx) {
-        // Idempotent: create what is missing. Add `if (oldVersion < N)` blocks for future migrations.
-        for (const [name, def] of Object.entries(STORE_DEFS)) {
-          const store = db.objectStoreNames.contains(name)
-            ? tx.objectStore(name)
-            : db.createObjectStore(name, { keyPath: def.keyPath });
-          for (const ix of def.indexes) {
-            if (!store.indexNames.contains(ix.name)) {
-              store.createIndex(ix.name, ix.keyPath, { unique: ix.unique, multiEntry: ix.multiEntry });
-            }
-          }
-        }
+        upgradeDb(db, tx, oldVersion, { storeDefs: STORE_DEFS, localStores: LOCAL_STORES });
+      },
+      // Another tab of an older version holds the database open while this one upgrades it: let go, otherwise the
+      // upgrade waits forever. (That older tab must be reloaded to work again.)
+      blocking() {
+        const closing = dbPromise;
+        dbPromise = null;
+        closing?.then((db) => db.close());
       },
       terminated() { dbPromise = null; },
     });

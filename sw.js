@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v14";
+const CACHE_VERSION = "elh-v15";
 
 const APP_SHELL = [
   "./",
@@ -51,6 +51,7 @@ const APP_SHELL = [
   "js/components/sync-ui.js",
   "js/components/enrich-modal.js",
   "js/components/copy-paste.js",
+  "js/components/recorder-ui.js",
   "js/views/ai-studio.js",
   "js/services/schema.js",
   "js/services/dedupe.js",
@@ -65,6 +66,10 @@ const APP_SHELL = [
   "js/services/enrich.js",
   "js/services/enrich-ops.js",
   "js/services/analysis.js",
+  "js/services/local-schema.js",
+  "js/services/db-upgrade.js",
+  "js/services/recorder.js",
+  "js/services/recording-ops.js",
   "js/services/analysis-ops.js",
   "js/services/vocab-merge.js",
   "js/ai/schema.js",

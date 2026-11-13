@@ -148,6 +148,8 @@ Tổng kết: số từ nhớ (x/y), số lỗi sửa đúng (x/5), danh sách t
 - Speaking: người học dán transcript tự ghi; prompt nói rõ không chấm được phát âm thật từ văn bản; P chỉ ước lượng và màn luôn ghi chú điều đó.
 - Band tổng: prompt dặn overall = trung bình 4 tiêu chí làm tròn tới 0.5; app tự tính lại (quy tắc 6.1). Nếu Claude trả khác thì hiện cả hai ("Claude: X · Tính theo 4 tiêu chí: Y") và dùng Y để lưu và ghi vào ma trận. Không từ chối JSON vì lý do này.
 - Highlight: mọi chỗ tìm thấy `original` (nguyên từ, không tô giữa một từ khác) đều được tô, kể cả khi lỗi lặp lại nhiều chỗ; `start`/`end` chỉ là gợi ý và được bỏ qua khi lệch. Lỗi không tìm thấy vị trí vẫn nằm trong khay.
+- **Thu âm (Speaking):** nút Ghi âm / Dừng / Nghe lại bằng `MediaRecorder`; micro chỉ được xin khi bấm Ghi âm, bị từ chối thì báo cách bật lại (ổ khoá cạnh địa chỉ → Micro → Cho phép; iPhone/iPad: Cài đặt → Safari → Micro). Đồng hồ theo Part: Part 1 và 3 đếm lên; Part 2 có 1 phút chuẩn bị (đếm ngược, chưa thu, có nút "Bỏ qua chuẩn bị"), rồi tự thu và đếm ngược 2 phút; quá 2 phút thì hiện "Quá giờ +m:ss" và thu tiếp, không tự cắt. Tab bị ẩn khi đang thu thì dừng và lưu phần đã thu. Bản ghi gắn với bài Speaking (bài nháp được tạo nếu chưa có), hiện trong danh sách kèm trình phát và nút "Xoá ghi âm"; **giữ tối đa 20 bản gần nhất trên cả máy**, bản cũ nhất tự bị xoá.
+- **Chuyển giọng nói thành chữ:** `SpeechRecognition` / `webkitSpeechRecognition` (en-GB hoặc en-US) điền dần vào ô transcript, nối sau chữ đã gõ; ô chỉ đọc trong lúc thu. Công tắc "Tự chuyển thành chữ": mặc định BẬT trên máy tính, TẮT trên iPhone/iPad (tránh tranh micro với bản ghi), lựa chọn được nhớ ở localStorage. Trình duyệt không hỗ trợ thì ẩn phần này, vẫn ghi âm được. Ghi chú: "Chuyển giọng nói thành chữ do trình duyệt xử lý (Chrome có thể gửi âm thanh tới máy chủ của Google, Safari tới Apple; app không gửi đi đâu)".
 - Khay lỗi: prompt dặn mỗi signature lặp lại chỉ liệt kê tối đa 2 lần; mặc định tick sẵn lỗi `high` và `medium`, `low` bỏ tick. Nhãn "Mới" hoặc "Đã có · lần N" (N = số lần đã ghi nhận). Lưu: lỗi theo signature (rồi theo đúng câu sai), từ theo lemma+pos (rồi thẻ ghi nhanh chỉ có chữ cùng lemma), giữ box thẻ cũ; `example` của Claude vào `exampleEn`, không vào `contexts`. Submission chuyển `analyzed`, lưu JSON kết quả, `bands` (overall tính lại, c1..c4, `claudeOverall`) và danh sách mục đã lưu (không cộng đôi khi lưu lại). Band ghi vào attempt W (theo Task) hoặc S của Cam/Test đã chọn, hỏi trước nếu ô đã có band khác.
 
 ### 5.7 Vocabulary Bank
@@ -271,7 +273,9 @@ So với bản thiết kế: bỏ `materials` (Learning Materials đã gộp và
 
 `submissions` bổ sung: `doneAt` (bài Writing đã bấm Xong; `status` vẫn `draft` cho tới khi Claude chấm), `source.task` (1 hoặc 2). `attempts.submissionId` trỏ tới bài Writing đã viết trong màn Luyện đề.
 
-LocalStorage: nháp Luyện đề `elh.run.<book>-<test>-<skill>` (Writing thêm `-<task>`) và tên file đã chọn `elh.runFiles.<book>-<test>` (chỉ tên, không có file), theme, aiMode (manual/api), proxyUrl, accessCode (Phase 2b), lastBackupAt, bookOrder.
+**Chỉ trên máy (ngoài bảng trên):** store `recordings` của IndexedDB (ghi âm Speaking: `id`, `submissionId`, `part`, `createdAt`, `durationSec`, `mimeType`, `size`, `audio` dạng ArrayBuffer; index `submissionId`, `createdAt`). Định nghĩa ở `js/services/local-schema.js`, KHÔNG thuộc `STORE_DEFS` nên không bao giờ vào backup JSON, `elh-data.json`, `exportRaw` hay `replaceAllRaw`. Phiên bản IndexedDB là 3 (`DB_VERSION`); `schemaVersion` của backup vẫn là 2.
+
+LocalStorage: nháp Luyện đề `elh.run.<book>-<test>-<skill>` (Writing thêm `-<task>`) và tên file đã chọn `elh.runFiles.<book>-<test>` (chỉ tên, không có file), theme, `elh.autoTranscribe` ("1"/"0"), `elh.speechLang` (en-GB/en-US), aiMode (manual/api), proxyUrl, accessCode (Phase 2b), lastBackupAt, bookOrder.
 
 ### 7.2 Backup / Drive
 File `elh-data.json` (Drive appDataFolder) và `elh-backup-YYYY-MM-DD.json` cùng định dạng:
@@ -289,7 +293,7 @@ File `elh-data.json` (Drive appDataFolder) và `elh-backup-YYYY-MM-DD.json` cùn
 - Trạng thái ở chân sidebar (điện thoại: thẻ ở Dashboard): Đã đồng bộ · x phút trước / Đang đồng bộ / Offline / Cần đăng nhập lại (chưa kết nối: Chưa kết nối Drive). Bấm vào dòng đó mở hộp thoại Kết nối Google Drive / Đồng bộ ngay / Ngắt kết nối (ngắt chỉ xoá cờ và thu hồi token, không xoá dữ liệu trên máy lẫn trên Drive).
 - Service worker không cache `accounts.google.com`, `*.googleapis.com`, `*.gstatic.com`.
 - Import tự tạo backup hiện tại trước; có 2 chế độ Thay thế / Gộp.
-- File không bao giờ chứa API key hay access code.
+- File không bao giờ chứa API key hay access code, và không bao giờ chứa ghi âm (store `recordings` nằm ngoài dữ liệu đồng bộ, mục 7.1).
 
 ### 7.3 Hợp đồng JSON với Claude
 Tác vụ: `writing_task1`, `writing_task2`, `speaking`, `vocab_enrich`, `error_enrich`, `exercise_generate`, `exercise_grade`. Schema đặt trong `js/ai/schema.js` và dùng chung cho chế độ copy/paste lẫn API.

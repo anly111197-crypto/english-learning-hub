@@ -15,7 +15,8 @@ const profile = mkdtempSync(join(tmpdir(), "elh-cdp-"));
 const dlDir = join(SC, "downloads");
 mkdirSync(dlDir, { recursive: true });
 
-const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "about:blank"], { stdio: "ignore" });
+const fakeMic = String(scenario).startsWith("speak-rec") ? ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] : []; // a beeping fake microphone, no permission prompt
+const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", ...fakeMic, `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function connect() {
@@ -1656,22 +1657,61 @@ try {
     const dbAll = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; })`);
     const putVocab = (rec) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction('vocab', 'readwrite'); tx.objectStore('vocab').put(${JSON.stringify(rec)}); tx.oncomplete = () => res(true); }; })`);
     const driveFile = () => ev(`JSON.parse(localStorage.getItem('__fakeFile') || 'null')`);
-    const driveVocab = async () => { const f = await driveFile(); return f ? JSON.parse(f.content).data.vocab.map((v) => v.lemma) : null; };
+    const driveVocab = async () => { const f = await driveFile(); return f ? JSON.parse(f.content).data.vocab.filter((v) => !v.deleted).map((v) => v.lemma) : null; };
     const reopen = async () => { await send("Page.reload"); await sleep(1300); };
     const now = () => new Date().toISOString();
     const vocabRec = (id, lemma) => ({ id, word: lemma, lemma, pos: "n", meaningVi: "thử", box: 1, nextReview: "2026-01-01", lapses: 0, contexts: [], createdAt: now(), updatedAt: now(), deleted: false });
     const backups = () => readdirSync(dlDir).filter((f) => f.startsWith("elh-backup-"));
     for (const f of backups()) unlinkSync(join(dlDir, f)); // a stale file of the same name would hide a missing download
 
-    // Local data exists first (sample data), so the first-sync backup has something to protect.
-    await go(BASE + "?dev=1#/dev", W, H);
-    await waitFor(`document.querySelector('[data-act=seed]')`);
-    await ev(`document.querySelector('[data-act=seed]').click()`);
-    await sleep(1500);
+    // Local data exists first, so the first-sync backup has something to protect. It is written the way VERSION 2 of the
+    // app stored it (a real database at version 2 with old data, tombstone included) and then opened by this version (3):
+    // the upgrade must only add the recordings store and keep every old record.
+    await go(BASE + "manifest.json", W, H); // same origin, no app code: nothing has opened the database yet
+    await ev(`new Promise((res, rej) => {
+      const r = indexedDB.open('elh', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        const mk = (name, keyPath, ixs) => { const s = db.createObjectStore(name, { keyPath }); for (const [n, kp, o] of ixs) s.createIndex(n, kp, o || {}); };
+        mk('vocab', 'id', [['lemmaPos', 'lemmaPos', { unique: true }], ['nextReview', 'nextReview'], ['box', 'box'], ['topic', 'topic']]);
+        mk('errors', 'id', [['signature', 'signature', { unique: true }], ['type', 'type'], ['status', 'status'], ['occurrences', 'occurrences']]);
+        mk('occurrences', 'id', [['itemId', 'itemId'], ['submissionId', 'submissionId']]);
+        mk('attempts', 'id', [['bookTest', ['book', 'test']], ['skill', 'skill']]);
+        mk('tests', 'key', []);
+        mk('submissions', 'id', [['kind', 'kind'], ['createdAt', 'createdAt']]);
+        mk('sessions', 'id', [['date', 'date']]);
+        mk('exercises', 'id', [['errorIds', 'errorIds', { multiEntry: true }]]);
+        mk('notebooks', 'id', [['group', 'group', { unique: true }]]);
+        mk('notes', 'id', [['linkKeys', 'linkKeys', { multiEntry: true }]]);
+      };
+      r.onsuccess = () => {
+        const db = r.result;
+        const tx = db.transaction(['vocab', 'errors', 'attempts', 'submissions', 'tests', 'occurrences'], 'readwrite');
+        const now = new Date().toISOString();
+        const base = { createdAt: now, updatedAt: now, deleted: false };
+        for (const [i, w] of ['legacyone', 'legacytwo', 'legacythree'].entries()) tx.objectStore('vocab').put({ ...base, id: 'v2-' + i, word: w, lemma: w, lemmaPos: w + '|', pos: '', meaningVi: 'cũ ' + i, box: 2, nextReview: '2026-01-01', topic: '', collocations: [], contexts: [], enriched: true });
+        tx.objectStore('vocab').put({ ...base, id: 'v2-gone', word: 'legacygone', lemma: 'legacygone', lemmaPos: 'legacygone|', pos: '', box: 1, nextReview: '2026-01-01', topic: '', deleted: true });
+        tx.objectStore('errors').put({ ...base, id: 'e2-0', original: 'He go home.', signature: 'pending:e2-0', type: '', status: 'new', occurrences: 3, enriched: false });
+        tx.objectStore('attempts').put({ ...base, id: 'a2-0', book: 15, test: 1, skill: 'R', rawScore: 31, band: 7, date: '2026-01-02', durationMin: 60, note: '' });
+        tx.objectStore('submissions').put({ ...base, id: 's2-0', kind: 'writing', source: { book: 15, test: 1, task: 2 }, prompt: 'q', text: 'old essay text', status: 'draft' });
+        tx.objectStore('tests').put({ ...base, key: '15-1', book: 15, test: 1, pdfUrl: '', audioUrls: ['', '', '', ''], pinned: false, note: 'cũ' });
+        tx.objectStore('occurrences').put({ ...base, id: 'o2-0', itemType: 'vocab', itemId: 'v2-0', source: null, sentence: '', date: '2026-01-02' });
+        tx.oncomplete = () => { db.close(); res(true); };
+        tx.onerror = () => rej(tx.error);
+      };
+      r.onerror = () => rej(r.error);
+    })`);
+    await go(BASE + "#/", W, H); // the app opens the version 2 database: upgrade to 3
+    await waitFor(`document.querySelector('#sync-status .sync-text') && document.querySelector('.dashboard-body')`, 15000);
+    await sleep(500);
+    const up = await ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const db = r.result; const names = [...db.objectStoreNames]; const out = { version: db.version, stores: names.sort(), counts: {}, rec: {}, idx: {} }; const tx = db.transaction(names); let n = 0; for (const s of names) { const st = tx.objectStore(s); out.idx[s] = [...st.indexNames].sort().join(','); const q = st.getAll(); q.onsuccess = () => { out.counts[s] = q.result.length; out.rec[s] = Object.fromEntries(q.result.map((x) => [x.id ?? x.key, x])); if (++n === names.length) { db.close(); res({ version: out.version, stores: out.stores, counts: out.counts, idx: out.idx, v0: out.rec.vocab['v2-0'], gone: out.rec.vocab['v2-gone'], err: out.rec.errors['e2-0'], att: out.rec.attempts['a2-0'], sub: out.rec.submissions['s2-0'], test: out.rec.tests['15-1'] }); } }; } }; })`);
+    ok("upgrade 2 -> 3: the database is now version 3 and has the 10 data stores plus 'recordings'", up.version === 3 && up.stores.length === 11 && up.stores.includes("recordings") && ["vocab", "errors", "occurrences", "attempts", "tests", "submissions", "sessions", "exercises", "notebooks", "notes"].every((n) => up.stores.includes(n)), JSON.stringify(up.stores));
+    ok("upgrade: every old record is still there (4 vocab with the tombstone, 1 error, 1 attempt, 1 submission, 1 test, 1 occurrence)", up.counts.vocab === 4 && up.counts.errors === 1 && up.counts.attempts === 1 && up.counts.submissions === 1 && up.counts.tests === 1 && up.counts.occurrences === 1 && up.counts.recordings === 0, JSON.stringify(up.counts));
+    ok("upgrade: the old records are unchanged field by field, the tombstone is still a tombstone", up.v0.meaningVi === "cũ 0" && up.v0.box === 2 && up.v0.lemmaPos === "legacyone|" && up.gone.deleted === true && up.err.original === "He go home." && up.err.occurrences === 3 && up.att.rawScore === 31 && up.att.band === 7 && up.sub.text === "old essay text" && up.test.note === "cũ");
+    ok("upgrade: the old stores keep their indexes (nothing re-created) and recordings has its own", up.idx.vocab === "box,lemmaPos,nextReview,topic" && up.idx.attempts === "bookTest,skill" && up.idx.recordings === "createdAt,submissionId", JSON.stringify(up.idx));
+    ok("upgrade: the app reads the old data (3 live words)", (await dbAll("vocab")).length === 3);
     const seeded = (await dbAll("vocab")).length;
-    await go(BASE + "#/", W, H);
-    await sleep(800);
-
+    await sleep(300);
     ok("not connected: status line says 'Chưa kết nối Drive'", (await status()) === "Chưa kết nối Drive", String(await status()));
     ok("not connected: no sign-in was requested and no Drive call was made (no popup by itself)", (await ev(`__tokenRequests.length === 0 && __driveCalls.length === 0`)));
     ok("the status line is visible and at least 44px tall", await ev(`(() => { const b = document.querySelector(${JSON.stringify(lineSel)}).getBoundingClientRect(); return b.width > 0 && b.height >= 44; })()`), mobile ? "dashboard card" : "sidebar");
@@ -2220,6 +2260,193 @@ try {
     await readJson(sp);
     ok("Speaking result: FC, LR, GRA, P and the fixed note that P is only an estimate", await waitFor(`!document.querySelector('[data-role=ai-result]').hidden`, 4000) && (await ev(`[...document.querySelectorAll('.ai-criterion')].map((c) => c.dataset.c).join(',')`)) === "FC,LR,GRA,P" && (await text("[data-role=ai-p-note]")).includes("ước lượng"));
     ok("no horizontal overflow on the speaking result", await noOverflow());
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "speak-rec" || scenario === "speak-rec-m") {
+    // Speaking recorder (step 8c-1) with a fake microphone (Chrome flags) and a fake SpeechRecognition (injected).
+    // Part 2 is shortened with ?dev=1&prep=2&speak=3.
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const mobile = scenario === "speak-rec-m";
+    const [W, H] = mobile ? [390, 844] : [1280, 800];
+    const URL_PAGE = BASE + "?dev=1&prep=2&speak=3#/ai/speaking";
+    const typeText = (t) => send("Input.insertText", { text: t });
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.innerText ?? ''`);
+    const count = (sel) => ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+      await sleep(250);
+    };
+    const dbRaw = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.map((x) => (x.audio instanceof ArrayBuffer ? { ...x, audio: undefined, audioBytes: x.audio.byteLength } : x))); }; })`);
+    const putRec = (store, rec) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction(${JSON.stringify(store)}, 'readwrite'); tx.objectStore(${JSON.stringify(store)}).put(${JSON.stringify(rec)}); tx.oncomplete = () => res(true); tx.onerror = tx.onabort = () => res('IDB error'); }; })`);
+    const phase = () => ev(`document.querySelector('[data-role=recorder]')?.dataset.phase`);
+    const waitPhase = (p, ms = 6000) => waitFor(`document.querySelector('[data-role=recorder]')?.dataset.phase === ${JSON.stringify(p)}`, ms);
+    const noOverflow = () => ev(`document.documentElement.scrollWidth <= innerWidth`);
+    const ready = () => waitFor(`document.querySelector('[data-role=recorder]') && document.querySelector('[data-role=ai-text]')`, 10000);
+    const reload = async () => { await send("Page.reload"); await sleep(1400); await ready(); };
+
+    const FAKES = `
+      (() => {
+        window.__gum = 0; window.__mrStarts = 0; window.__srStarts = 0;
+        const gum = navigator.mediaDevices && navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        if (gum) navigator.mediaDevices.getUserMedia = (c) => { window.__gum++; if (localStorage.getItem('__micMode') === 'deny') return Promise.reject(new DOMException('denied', 'NotAllowedError')); return gum(c); };
+        const start = MediaRecorder.prototype.start;
+        MediaRecorder.prototype.start = function (...a) { window.__mrStarts++; return start.apply(this, a); };
+        if (localStorage.getItem('__noSpeech') === '1') { delete window.webkitSpeechRecognition; delete window.SpeechRecognition; return; }
+        class FakeSR {
+          start() {
+            window.__srStarts++; window.__srLang = this.lang;
+            const emit = (results, resultIndex) => this.onresult && this.onresult({ results, resultIndex });
+            const part = (t, f) => { const r = { isFinal: f, length: 1 }; r[0] = { transcript: t }; return r; };
+            this._t = [
+              setTimeout(() => emit([part('hello', false)], 0), 250),
+              setTimeout(() => emit([part('hello there', true)], 0), 600),
+              setTimeout(() => emit([part('hello there', true), part(' my name', false)], 1), 900),
+              setTimeout(() => this.onend && this.onend(), 1500), // Chrome ends a recognition after a pause: the app starts a new one
+            ];
+          }
+          stop() { (this._t || []).forEach(clearTimeout); setTimeout(() => this.onend && this.onend(), 0); }
+        }
+        window.webkitSpeechRecognition = FakeSR; delete window.SpeechRecognition;
+      })();`;
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: FAKES });
+
+    await go(URL_PAGE, W, H);
+    await ready();
+    ok("the recorder is on the Speaking screen: Ghi âm, Dừng (off), Nghe lại (off), clock 0:00 and the hint for Part 1", (await text("[data-role=rec-start]")) === "Ghi âm" && await ev(`document.querySelector('[data-role=rec-stop]').disabled && document.querySelector('[data-role=rec-replay]').disabled`) && (await text("[data-role=rec-clock]")) === "0:00" && (await text("[data-role=rec-label]")) === "Part 1: đồng hồ đếm lên", await text("[data-role=rec-label]"));
+    ok("the microphone was NOT asked for just by opening the screen", (await ev(`window.__gum`)) === 0);
+    ok("speech to text: the small note names the browser and Google/Apple; the switch is on by default on a computer", (await text("[data-role=rec-speech]")).includes("Chuyển giọng nói thành chữ do trình duyệt xử lý") && (await text("[data-role=rec-speech]")).includes("Google") && (await text("[data-role=rec-speech]")).includes("Apple") && (await ev(`document.querySelector('[data-role=rec-auto]').checked`)));
+    ok("buttons are at least 44px tall and nothing overflows", await ev(`[...document.querySelectorAll('.rec-buttons .btn')].filter((b) => !b.hidden).every((b) => b.getBoundingClientRect().height >= 44)`) && await noOverflow());
+
+    // refused microphone
+    await ev(`localStorage.setItem('__micMode', 'deny')`);
+    await realClick("[data-role=rec-start]");
+    ok("microphone refused: says how to switch it back on, nothing is recorded, the button works again", (await ev(`window.__gum`)) === 1 && (await text("[data-role=rec-error]")).includes("ổ khóa") && (await text("[data-role=rec-error]")).includes("Cho phép") && (await text("[data-role=rec-error]")).includes("Safari") && (await phase()) === "idle" && !(await ev(`document.querySelector('[data-role=rec-start]').disabled`)));
+    ok("and no piece was created for nothing", (await dbRaw("submissions")).length === 0 && (await dbRaw("recordings")).length === 0);
+    await ev(`localStorage.setItem('__micMode', 'ok')`);
+
+    // Part 1: counts up, dictation fills the transcript after what was typed, stop saves
+    await realClick("[data-role=ai-text]");
+    await typeText("My note.");
+    await realClick("[data-role=rec-start]");
+    ok("recording: phase 'recording', label 'Đang ghi', Dừng on, Ghi âm and Nghe lại off", await waitPhase("recording") && (await text("[data-role=rec-label]")) === "Đang ghi" && await ev(`!document.querySelector('[data-role=rec-stop]').disabled && document.querySelector('[data-role=rec-start]').disabled && document.querySelector('[data-role=rec-replay]').disabled`));
+    await sleep(1700);
+    const t1 = await text("[data-role=rec-clock]");
+    ok("Part 1 counts up (at least 0:01 after 1.7 s)", /^0:0[1-9]$/.test(t1), t1);
+    ok("dictation fills the transcript after the typed text, word by word, and the box is read-only meanwhile", await waitFor(`document.querySelector('[data-role=ai-text]').value.startsWith('My note. hello there')`, 3000) && await ev(`document.querySelector('[data-role=ai-text]').readOnly`) && (await text("[data-role=ai-count]")) !== "1 từ", await ev(`document.querySelector('[data-role=ai-text]').value`));
+    ok("the recognition was started with en-GB and restarted after Chrome ended it", (await ev(`window.__srLang`)) === "en-GB" && await waitFor(`window.__srStarts >= 2`, 3000));
+    await realClick("[data-role=rec-stop]");
+    ok("stopped: a recording appears, the transcript box is editable again and holds the recognised words", await waitFor(`document.querySelectorAll('.rec-item').length === 1`, 6000) && (await phase()) === "idle" && await ev(`!document.querySelector('[data-role=ai-text]').readOnly && document.querySelector('[data-role=ai-text]').value.includes('hello there')`), await ev(`document.querySelector('[data-role=ai-text]').value`));
+    const rec1 = (await dbRaw("recordings"))[0];
+    const subs = await dbRaw("submissions");
+    ok("stored in IndexedDB: audio bytes, an audio mime type, part 1, a duration, linked to a Speaking piece created for it", !!rec1 && rec1.audioBytes > 1000 && rec1.audioBytes === rec1.size && /^audio\//.test(rec1.mimeType) && rec1.part === 1 && rec1.durationSec >= 1 && subs.length === 1 && subs[0].kind === "speaking" && rec1.submissionId === subs[0].id, JSON.stringify({ size: rec1?.size, mime: rec1?.mimeType, d: rec1?.durationSec }));
+    ok("the dictated words were saved into the piece too (autosave)", await waitFor(`true`) && (await sleep(1600), (await dbRaw("submissions"))[0].text.includes("hello there")));
+    ok("'Nghe lại' is on now and plays the latest recording", await ev(`!document.querySelector('[data-role=rec-replay]').disabled`) && (await realClick("[data-role=rec-replay]"), await sleep(600), await ev(`(() => { const a = document.querySelector('.rec-item audio'); return !a.paused || a.currentTime > 0; })()`)));
+    await shot(mobile ? "rec-m.png" : "rec-d.png");
+
+    // a tab that goes to the background keeps what was recorded
+    await realClick("[data-role=rec-start]");
+    await waitPhase("recording");
+    await sleep(900);
+    await ev(`Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange'))`);
+    ok("hidden tab while recording: stopped and saved (2 recordings)", await waitFor(`document.querySelectorAll('.rec-item').length === 2`, 6000) && (await phase()) === "idle");
+    await ev(`Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange'))`);
+
+    // Part 2: prepare (no recording), speak, over time (no cut), skip
+    await ev(`(() => { const s = document.querySelector('[data-role=ai-part]'); s.value = '2'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    ok("Part 2 hint: 0:02 to prepare then 0:03 to speak (shortened for the test)", (await text("[data-role=rec-label]")) === "Part 2: 0:02 chuẩn bị, rồi 0:03 nói", await text("[data-role=rec-label]"));
+    const mr0 = await ev(`window.__mrStarts`);
+    await realClick("[data-role=rec-start]");
+    ok("Part 2: it starts with the preparation countdown and does not record yet", await waitPhase("preparing", 3000) && (await text("[data-role=rec-label]")) === "Chuẩn bị" && /^0:0[12]$/.test(await text("[data-role=rec-clock]")) && (await ev(`window.__mrStarts`)) === mr0 && await ev(`!document.querySelector('[data-role=rec-skip]').hidden`));
+    ok("after the preparation it records by itself: 'Đang nói' counting down", await waitPhase("recording", 5000) && (await text("[data-role=rec-label]")) === "Đang nói" && (await ev(`window.__mrStarts`)) === mr0 + 1 && await ev(`document.querySelector('[data-role=rec-skip]').hidden`));
+    ok("after the speaking time: 'Quá giờ +0:0x', the recording is NOT cut", await waitFor(`document.querySelector('[data-role=rec-label]').textContent === 'Quá giờ'`, 6000) && /^\+0:0\d$/.test(await text("[data-role=rec-clock]")) && (await phase()) === "recording", await text("[data-role=rec-clock]"));
+    await sleep(1300);
+    ok("it keeps counting up past the limit and is still recording", (await phase()) === "recording" && /^\+0:0[1-9]$/.test(await text("[data-role=rec-clock]")), await text("[data-role=rec-clock]"));
+    await realClick("[data-role=rec-stop]");
+    ok("stopped: the Part 2 recording is saved with part 2 (3 recordings)", await waitFor(`document.querySelectorAll('.rec-item').length === 3`, 6000) && (await dbRaw("recordings")).filter((r) => r.part === 2).length === 1);
+    await realClick("[data-role=rec-start]");
+    await waitPhase("preparing", 3000);
+    await realClick("[data-role=rec-skip]");
+    ok("'Bỏ qua chuẩn bị' goes straight to speaking", await waitPhase("recording", 2000) && (await text("[data-role=rec-label]")) === "Đang nói");
+    await sleep(700);
+    await realClick("[data-role=rec-stop]");
+    ok("(4 recordings)", await waitFor(`document.querySelectorAll('.rec-item').length === 4`, 6000));
+    // stopping during the preparation records nothing
+    await realClick("[data-role=rec-start]");
+    await waitPhase("preparing", 3000);
+    await realClick("[data-role=rec-stop]");
+    ok("stopped during the preparation: nothing recorded, microphone released", (await phase()) === "idle" && (await count(".rec-item")) === 4 && (await dbRaw("recordings")).length === 4);
+
+    // at most 20 recordings on the device (older ones first)
+    const subId = (await dbRaw("submissions"))[0].id;
+    for (let i = 0; i < 16; i++) await putRec("recordings", { id: `fill-${String(i).padStart(2, "0")}`, submissionId: "other-piece", part: 1, createdAt: `2020-01-01T00:${String(i).padStart(2, "0")}:00.000Z`, durationSec: 5, mimeType: "audio/webm", size: 3, audio: new Array(3).fill(0) });
+    ok("the device holds exactly 20 now (4 + 16 fillers)", (await dbRaw("recordings")).length === 20);
+    await ev(`(() => { const s = document.querySelector('[data-role=ai-part]'); s.value = '1'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await realClick("[data-role=rec-start]");
+    await waitPhase("recording", 3000);
+    await sleep(900);
+    await realClick("[data-role=rec-stop]");
+    await waitFor(`document.querySelectorAll('.rec-item').length === 5`, 6000);
+    const all = await dbRaw("recordings");
+    ok("the 21st recording pushes out the oldest: still 20, the oldest filler is gone, all 5 of this piece are kept", all.length === 20 && !all.some((r) => r.id === "fill-00") && all.some((r) => r.id === "fill-01") && all.filter((r) => r.submissionId === subId).length === 5, `${all.length}`);
+
+    // delete one
+    await realClick("[data-role=rec-delete]");
+    await waitFor(`document.querySelector('dialog.modal[open]')`, 3000);
+    await ev(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Xoá').click()`);
+    ok("'Xoá ghi âm' asks, then removes just that recording", await waitFor(`document.querySelectorAll('.rec-item').length === 4`, 4000) && (await dbRaw("recordings")).length === 19);
+
+    // the recordings are still there after a reload, found through the piece
+    await ev(`location.hash = '#/ai/speaking?id=${subId}'`);
+    await sleep(700);
+    await ready();
+    await reload();
+    ok("after a reload the piece shows its 4 recordings", await waitFor(`document.querySelectorAll('.rec-item').length === 4`, 6000), String(await count(".rec-item")));
+
+    // never in the backup or in the Drive file
+    const leak = await ev(`(async () => {
+      const { buildBackup } = await import('/js/services/backup.js');
+      const { exportRaw } = await import('/js/services/repo.js');
+      const { buildPayload } = await import('/js/services/sync-drive.js');
+      const b = await buildBackup();
+      const payload = buildPayload(await exportRaw());
+      const raw = await exportRaw();
+      const dump = JSON.stringify(b) + JSON.stringify(payload);
+      return { backupKeys: Object.keys(b.data).sort().join(','), payloadKeys: Object.keys(payload.data).sort().join(','), rawKeys: Object.keys(raw).sort().join(','), hasName: dump.includes('recordings'), hasAudio: /audio\\/(webm|mp4|ogg)/.test(dump), size: dump.length };
+    })()`);
+    ok("backup JSON, the Drive sync payload and exportRaw contain no recordings and no audio", !/recordings/.test(leak.backupKeys + leak.payloadKeys + leak.rawKeys) && leak.backupKeys.split(",").length === 10 && leak.payloadKeys === leak.backupKeys && !leak.hasName && !leak.hasAudio && leak.size < 200000, JSON.stringify(leak));
+
+    // switch "Tự chuyển thành chữ": off on iPhone/iPad by default, the saved choice wins
+    const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
+    await ev(`localStorage.removeItem('elh.autoTranscribe')`);
+    await send("Emulation.setUserAgentOverride", { userAgent: IPHONE_UA, platform: "iPhone" });
+    await reload();
+    ok("on an iPhone the switch is OFF by default", !(await ev(`document.querySelector('[data-role=rec-auto]').checked`)) && (await ev(`localStorage.getItem('elh.autoTranscribe')`)) === null);
+    await realClick("[data-role=rec-auto]");
+    ok("turning it on is remembered", (await ev(`localStorage.getItem('elh.autoTranscribe')`)) === "1");
+    await reload();
+    ok("and the remembered choice wins after a reload, even on the iPhone", await ev(`document.querySelector('[data-role=rec-auto]').checked`));
+    await realClick("[data-role=rec-auto]");
+    ok("turning it off is remembered too", (await ev(`localStorage.getItem('elh.autoTranscribe')`)) === "0");
+    const sr0 = await ev(`window.__srStarts`);
+    await realClick("[data-role=rec-start]");
+    await waitPhase("recording", 3000);
+    await sleep(900);
+    ok("with the switch off nothing listens: no recognition is started, the transcript box stays editable", (await ev(`window.__srStarts`)) === sr0 && await ev(`!document.querySelector('[data-role=ai-text]').readOnly`));
+    await realClick("[data-role=rec-stop]");
+    await waitFor(`document.querySelectorAll('.rec-item').length === 5`, 6000);
+    await send("Emulation.setUserAgentOverride", { userAgent: "" });
+
+    // no speech recognition in the browser: that part is hidden, recording still works
+    await ev(`localStorage.setItem('__noSpeech', '1')`);
+    await reload();
+    ok("no SpeechRecognition: the speech block is hidden; Ghi âm is still there", (await count("[data-role=rec-speech]")) === 0 && (await count("[data-role=rec-start]")) === 1);
+    await realClick("[data-role=rec-start]");
+    await waitPhase("recording", 3000);
+    await sleep(900);
+    await realClick("[data-role=rec-stop]");
+    ok("and it records and saves without it", await waitFor(`document.querySelectorAll('.rec-item').length === 6`, 6000));
+    ok("no horizontal overflow at the end", await noOverflow());
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "layout") {
     for (const [w, h, n] of [[1280, 800, "d"], [900, 800, "t"], [390, 800, "m"]]) {
       await go(BASE + "#/", w, h);

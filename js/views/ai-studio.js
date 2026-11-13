@@ -5,6 +5,7 @@ import { h } from "../components/dom.js";
 import { showToast } from "../components/toast.js";
 import { confirmModal } from "../components/modal.js";
 import { createCopyPaste } from "../components/copy-paste.js";
+import { mountRecorder } from "../components/recorder-ui.js";
 import { startTask } from "../ai/index.js";
 import { AiFormatError, CRITERIA, CRITERIA_LABELS } from "../ai/schema.js";
 import { BOOKS } from "../services/progress.js";
@@ -48,11 +49,12 @@ function scheduleSave() {
 }
 
 // One write at a time, in order: the first save creates the record, the next ones update the same record.
-function flushSave() {
+// force: create the record even when nothing is typed yet (a recording needs a piece to belong to).
+function flushSave(force = false) {
   clearTimeout(s.saveTimer);
   const x = s;
   x.chain = x.chain.then(async () => {
-    if (!x.text.trim() && !x.id) return null;
+    if (!force && !x.text.trim() && !x.id) return null;
     const rec = await saveStudioDraft({ id: x.id, ...readForm(x) });
     x.id = rec.id;
     x.sub = rec;
@@ -366,11 +368,24 @@ function buildForm() {
   book.addEventListener("change", () => { x.source.book = book.value ? Number(book.value) : ""; test.disabled = !x.source.book; scheduleSave(); });
   test.addEventListener("change", () => { x.source.test = Number(test.value); scheduleSave(); });
   task?.addEventListener("change", () => { x.source.task = Number(task.value); fillTypes(); reminder.hidden = x.source.task !== 1; scheduleSave(); });
-  part?.addEventListener("change", () => { x.source.part = Number(part.value); scheduleSave(); });
+  part?.addEventListener("change", () => { x.source.part = Number(part.value); scheduleSave(); x.recorder?.refresh(); });
   type?.addEventListener("change", () => { x.taskType = type.value; scheduleSave(); });
   prompt.addEventListener("input", () => { x.prompt = prompt.value; scheduleSave(); });
   text.addEventListener("input", () => { x.text = text.value; updateCount(); scheduleSave(); });
   if (type) fillTypes();
+
+  // Speaking only: the recorder. It writes into the transcript box while it listens (spec 5.6).
+  const recHost = h("div", { class: "ai-rec-host" });
+  if (!isW) {
+    x.recorder = mountRecorder(recHost, {
+      part: () => x.source.part,
+      ensureSubmission: async () => { if (!x.id) await flushSave(true); return x.id; },
+      currentSubmissionId: () => x.id,
+      getText: () => x.text,
+      setText: (v) => { if (s !== x) return; x.text = v; text.value = v; updateCount(); scheduleSave(); },
+      setReadOnly: (on) => { text.readOnly = on; },
+    });
+  }
 
   x.refs = { ...x.refs, text, prompt, panel: h("div", { class: "ai-copy-panel", hidden: true, dataset: { role: "ai-panel" } }), result: h("section", { class: "ai-result", hidden: true, dataset: { role: "ai-result" }, "aria-label": "Kết quả của Claude" }) };
 
@@ -386,6 +401,7 @@ function buildForm() {
       h("div", { class: "ai-text-head" }, h("label", { class: "field-label", for: "ai-text" }, isW ? "Bài viết" : "Transcript"), count),
       text),
     isW ? null : h("p", { class: "form-hint" }, "App không chấm được phát âm thật từ văn bản: điểm P chỉ là ước lượng."),
+    isW ? null : recHost,
     h("div", { class: "ai-analyze" },
       h("button", { type: "button", class: "btn btn-primary", dataset: { role: "ai-analyze" }, onClick: onAnalyze }, "Phân tích với Claude")),
     x.refs.panel);
@@ -442,6 +458,7 @@ function stop() {
   if (!s) return;
   const x = s;
   clearTimeout(x.saveTimer);
+  x.recorder?.destroy(); // a recording in progress is saved, the microphone is released
   if (x.text.trim() || x.id) flushSave().catch(() => {}); // leaving: do not lose the last words
   s = null;
 }

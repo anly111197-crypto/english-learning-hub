@@ -18,6 +18,7 @@
 | 7+ | Màn Luyện đề: nút Ghi nhanh ở thanh đầu | commit "Practice: quick capture button" |
 | 8a | Hoàn thiện với Claude cho từ và lỗi (copy/paste, spec 6.6) | commit "Step 8a: enrich with Claude (copy/paste)" (`git log --grep="Step 8a"`) |
 | 8b | Claude copy/paste cho Writing & Speaking (spec 5.6) | commit "Step 8b: Claude copy/paste for Writing & Speaking" (`git log --grep="Step 8b"`) |
+| 8b+ | Thu âm cho màn Speaking | commit "Speaking: recorder" (`git log --grep="Speaking: recorder"`) |
 
 ## 2. Quy Æ°á»›c chÆ°a cÃ³ trong spec
 
@@ -26,16 +27,17 @@
 - **Query cá»§a router**: `#/vocab?due=1`, `#/errors?type=articles&status=open`, `#/practice?status=improve&skill=R`. Router gá»i `view.mount(container, params, query)` vÃ  `update(params, query)`. View Ä‘áº·t láº¡i bá»™ lá»c má»—i láº§n má»Ÿ rá»“i Ã¡p query, nÃªn link tá»« Dashboard luÃ´n má»Ÿ Ä‘Ãºng bá»™ lá»c.
 - **`?dev=1`** (query Ä‘á»©ng trÆ°á»›c dáº¥u `#`): báº­t route `#/dev` (dá»¯ liá»‡u máº«u, kiá»ƒm tra tá»± Ä‘á»™ng, nÃºt "Äáº·t má»i tá»« Ä‘áº¿n háº¡n hÃ´m nay"). `&autorun=1` tá»± cháº¡y kiá»ƒm tra. **`&clock=GIÃ‚Y`** rÃºt ngáº¯n Ä‘á»“ng há»“ tá»«ng bÆ°á»›c khá»Ÿi Ä‘á»™ng Ä‘á»ƒ thá»­ "háº¿t giá»" (chá»‰ cÃ³ hiá»‡u lá»±c khi cÃ³ `dev=1`).
 - **Sá»‘ liá»‡u Dashboard** luÃ´n tÃ­nh láº¡i tá»« báº£ng khi má»Ÿ trang (`services/dashboard-stats.js`), khÃ´ng lÆ°u. HÃ m thuáº§n thÃ¬ cÃ³ test, view chá»‰ váº½.
-- **Service worker** network-first. Má»—i bÆ°á»›c pháº£i tÄƒng `CACHE_VERSION` (nay `elh-v14`) vÃ  giá»¯ `APP_SHELL` Ä‘á»§ file. Service worker bá» qua `blob:` vÃ  `drive.google.com`: file cá»§a ngÆ°á»i há»c khÃ´ng bao giá» vÃ o cache.
+- **Service worker** network-first. Má»—i bÆ°á»›c pháº£i tÄƒng `CACHE_VERSION` (nay `elh-v15`) vÃ  giá»¯ `APP_SHELL` Ä‘á»§ file. Service worker bá» qua `blob:` vÃ  `drive.google.com`: file cá»§a ngÆ°á»i há»c khÃ´ng bao giá» vÃ o cache.
 - **Giao diá»‡n**: chá»‰ dÃ¹ng token trong `css/tokens.css` (khÃ´ng viáº¿t mÃ£ mÃ u cá»©ng); chá»¯ UI tiáº¿ng Viá»‡t, mÃ£ vÃ  comment tiáº¿ng Anh.
 - **MÃ n Luyá»‡n Ä‘á»** (`views/practice-run.js`, nguá»“n Ä‘á» vÃ  audio á»Ÿ `practice-run-source.js`, luáº­t thuáº§n á»Ÿ `services/practice-run.js`): toÃ n mÃ n, `body[data-route="practice-run"]` áº©n nav vÃ  FAB. NhÃ¡p L/R á»Ÿ localStorage `elh.run.<book>-<test>-<skill>` (Writing: thÃªm `-<task>`, vÄƒn báº£n cÃ²n á»Ÿ `submissions`); tÃªn file Ä‘Ã£ chá»n á»Ÿ `elh.runFiles.<book>-<test>`. NhÃ¡p chá»‰ xoÃ¡ sau khi lÆ°u attempt thÃ nh cÃ´ng. LÆ°u Ä‘iá»ƒm dÃ¹ng `saveAttempt` nhÆ° modal Nháº­p káº¿t quáº£.
 - **Đồng bộ Drive** (`services/sync-controller.js` lịch và trạng thái, `sync-drive.js` vòng kéo-gộp-đẩy thuần, `google-auth.js` GIS, `components/sync-ui.js` dòng trạng thái và hộp thoại, Client ID ở `js/config.js`). Token chỉ ở bộ nhớ; localStorage chỉ có cờ `elh.sync.*`. `elh:sync-state` báo trạng thái; kéo mà dữ liệu đổi thì phát `elh:data-changed` với `detail.fromSync` (không kích hoạt đẩy lại). Vòng kéo 60 giây (`pollOnce`, `shouldPoll`, `checkRemoteChanged`) chỉ chạy khi tab hiển thị, online, đã kết nối; `?dev=1&poll=GIÂY` rút ngắn vòng. Muốn thử giao diện không cần Google: kịch bản e2e `sync` chèn GIS và Drive giả.
 - **AI** (`js/ai/schema.js` hợp đồng và kiểm tra JSON, `prompts.js`, `index.js` là cửa duy nhất, hiện chỉ chế độ manual; Bước 9 thêm api trong `index.js`). **Hoàn thiện với Claude**: `services/enrich.js` (thuần), `enrich-ops.js` (IndexedDB), `components/enrich-modal.js`. Thẻ vừa hoàn thiện luôn gộp vào thẻ có sẵn và thẻ có sẵn giữ box Leitner. `example`/`wordFamily` của Claude ở trường `exampleEn`/`wordFamily`, không vào `contexts`. `showToast(message, kind, { label, onClick })` có thể kèm nút.
 - **Writing & Speaking AI** (`views/ai-studio.js`, route `#/ai/writing` và `#/ai/speaking`, `?id=`): `ai/schema.js` `parseAnalysisResult`, `ai/prompts.js` `buildAnalysisPrompt`, `services/analysis.js` (thuần: band tổng tính lại, định vị highlight, dựng khay) và `analysis-ops.js` (lưu, chống trùng, ghi band). `components/copy-paste.js` là khối sao chép/dán dùng chung với 8a. Thanh lưu dính đáy phải nằm trên nút FAB.
+- **Thu âm Speaking** (`components/recorder-ui.js`, `services/recorder.js` thuần, `recording-ops.js`): store `recordings` nằm trong `services/local-schema.js`, ngoài `STORE_DEFS`, nên không vào backup/Drive. IndexedDB phiên bản 3 (`DB_VERSION`), `upgradeDb` trong `db-upgrade.js`. Ai thêm store chỉ có trên máy thì làm theo cách này.
 - **XoÃ¡ má»m**: báº£n ghi cÃ³ `deleted`; táº¡o láº¡i cÃ¹ng id thÃ¬ há»“i sinh. `vocab.lemmaPos`, `notes.linkKeys` lÃ  chá»‰ má»¥c dáº«n xuáº¥t.
 
 **Kiá»ƒm thá»­**
-- ÄÆ¡n vá»‹: `node --test tests/*.test.js` (255 test, pass).
+- ÄÆ¡n vá»‹: `node --test tests/*.test.js` (278 test, pass).
 - Headless (Chrome qua CDP, phÃ­m vÃ  chuá»™t tháº­t): `python -m http.server 8765` á»Ÿ thÆ° má»¥c repo, rá»“i `node tests/e2e/run.mjs <ká»‹ch báº£n> [thÆ°-má»¥c-xuáº¥t]`. Danh sÃ¡ch ká»‹ch báº£n vÃ  cÃ¡ch Ä‘á»c káº¿t quáº£: `tests/e2e/README.md`. Script luÃ´n thoÃ¡t mÃ£ 0, pháº£i tá»± Ä‘á»c `FAIL` vÃ  dÃ²ng `console problems`. KhÃ´ng náº±m trong `APP_SHELL`.
 
 ## 3. ChÆ°a thá»­ trÃªn thiáº¿t bá»‹ tháº­t
@@ -46,6 +48,7 @@
 - MÃ n hÃ¬nh iPad 768â€“1023px: chá»‰ suy ra tá»« quy táº¯c CSS, chÆ°a chá»¥p riÃªng.
 - Hoàn thiện với Claude: chưa gọi Claude thật. JSON mẫu do e2e tự dựng, nên chưa biết Claude thật có luôn đúng schema không (nhất là `signature` đúng dạng `nhóm:quy-tắc` và `pos`); thử một lô thật và báo lỗi để chỉnh prompt. Chưa thử sao chép/dán bằng clipboard thật trên Safari iOS.
 - Writing & Speaking AI: cũng chưa gọi Claude thật; chưa biết Claude thật có tuân thủ `start`/`end`, band chia 0.5, `dataAccuracyChecked` và giới hạn 2 lần mỗi signature không. Ảnh biểu đồ Task 1 đính kèm trong claude.ai chưa thử thật. Tiêu chí xong của 8b (viết một bài Task 2 thật, dán JSON thật) cần người dùng tự thử.
+- Thu âm: chưa thử micro thật, giọng thật, nhận dạng giọng nói thật (e2e dùng micro giả của Chrome và `SpeechRecognition` giả). Chưa thử Safari iOS: `MediaRecorder` (audio/mp4), xin quyền micro, và nhất là bật nhận dạng cùng lúc với ghi âm (có thể tranh micro; vì thế công tắc mặc định TẮT trên iPhone/iPad). Chưa thử phát lại ra loa thật.
 - Đồng bộ Drive với Google THẬT (e2e chỉ dùng GIS và Drive giả): đăng nhập, xin token im lặng, token hết hạn sau 1 giờ, Safari iOS (popup, ITP), hai thiết bị thật, nạp script `accounts.google.com/gsi/client` thật. Tiêu chí xong của Bước 7 (thêm từ ở laptop, thấy trên iPhone ≤ 1 phút và ngược lại) cần người dùng tự thử.
 - Luyá»‡n Ä‘á»: PDF nhÃºng trÃªn Safari iOS (thÆ°á»ng chá»‰ hiá»‡n trang Ä‘áº§u), khung xem Drive bá»‹ cháº·n tháº­t, chá»n file tá»« á»©ng dá»¥ng Tá»‡p/Drive trÃªn iPad, audio vÃ  PDF tháº­t cá»§a Cambridge (e2e chá»‰ dÃ¹ng file giáº£).
 

@@ -22,3 +22,18 @@ function devPollMs() {
   }
 }
 export const POLL_INTERVAL_MS = devPollMs() ?? 60000;
+
+// Speaking recorder (step 8c-1): Part 2 gives 1 minute to prepare and 2 minutes to speak. ?dev=1&prep=2&speak=3 shortens
+// them for the e2e scripts (the override only exists together with dev=1).
+function devSeconds(name) {
+  try {
+    const q = new URLSearchParams(location.search);
+    const s = Number(q.get(name));
+    return q.get("dev") === "1" && s > 0 ? s : null;
+  } catch {
+    return null; // no location (node tests)
+  }
+}
+export const PART2_PREP_SEC = devSeconds("prep") ?? 60;
+export const PART2_SPEAK_SEC = devSeconds("speak") ?? 120;
+export const MAX_RECORDINGS = 20; // the newest recordings kept on this device, across all pieces
