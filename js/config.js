@@ -10,3 +10,15 @@ export const SYNC_FILE_NAME = "elh-data.json";
 
 export const PUSH_DELAY_MS = 5000;        // push after this long without a data change
 export const FOCUS_PULL_MIN_MS = 30000;   // pull when the tab regains focus, at most this often
+// While the tab is visible: look at the Drive file's modifiedTime this often. Tests can shorten it with ?dev=1&poll=SECONDS
+// (like the warm-up clock): the override only exists together with dev=1.
+function devPollMs() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const s = Number(q.get("poll"));
+    return q.get("dev") === "1" && s > 0 ? s * 1000 : null;
+  } catch {
+    return null; // no location (node tests)
+  }
+}
+export const POLL_INTERVAL_MS = devPollMs() ?? 60000;

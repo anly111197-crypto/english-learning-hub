@@ -1625,13 +1625,14 @@ try {
         if (mode === '401' || !init.headers || init.headers.Authorization !== 'Bearer FAKE-TOKEN') return new Response('', { status: 401 });
         const file = JSON.parse(L.getItem('__fakeFile') || 'null');
         const reply = (o) => new Response(JSON.stringify(o), { status: 200 });
-        if (u.pathname === '/drive/v3/files' && !init.method) return reply({ files: file ? [{ id: 'F1', createdTime: file.createdTime }] : [] });
+        if (u.pathname === '/drive/v3/files' && !init.method) return reply({ files: file ? [{ id: 'F1', createdTime: file.createdTime, modifiedTime: file.modifiedTime }] : [] });
         if (u.pathname === '/drive/v3/files/F1' && !init.method) return file ? new Response(file.content) : new Response('', { status: 404 });
-        if (u.pathname === '/upload/drive/v3/files/F1' && init.method === 'PATCH') { file.content = init.body; L.setItem('__fakeFile', JSON.stringify(file)); return reply({ id: 'F1' }); }
+        if (u.pathname === '/upload/drive/v3/files/F1' && init.method === 'PATCH') { file.content = init.body; file.modifiedTime = new Date(Date.now() + 1).toISOString(); L.setItem('__fakeFile', JSON.stringify(file)); return reply({ id: 'F1', modifiedTime: file.modifiedTime }); }
         if (u.pathname === '/upload/drive/v3/files' && init.method === 'POST') {
           const parts = init.body.split(/--[^\\r\\n]+/).filter((p) => p.includes('Content-Type'));
-          L.setItem('__fakeFile', JSON.stringify({ createdTime: new Date().toISOString(), content: parts[1].split('\\r\\n\\r\\n')[1].trim() }));
-          return reply({ id: 'F1' });
+          const made = { createdTime: new Date().toISOString(), modifiedTime: new Date().toISOString(), content: parts[1].split('\\r\\n\\r\\n')[1].trim() };
+          L.setItem('__fakeFile', JSON.stringify(made));
+          return reply({ id: 'F1', modifiedTime: made.modifiedTime });
         }
         return new Response('', { status: 400 });
       };
@@ -1768,6 +1769,40 @@ try {
     ok("reconnect works and does not download a second backup", (await waitStatus("Đã đồng bộ")) && backups().length === 0, await status());
     if (!mobile) await shot("sync-d.png");
 
+    // ---- The 60-second poll (shortened to 2 s here with ?dev=1&poll=2) ----
+    await go(BASE + "?dev=1&poll=2#/", W, H);
+    ok("poll: reopened connected and synced", await waitStatus("Đã đồng bộ"), await status());
+    await sleep(600);
+    const hasLocal = (lemma) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('vocab').objectStore('vocab').getAll(); q.onsuccess = () => res(q.result.some(v => v.lemma === ${JSON.stringify(lemma)} && !v.deleted)); }; })`);
+    const waitLocal = (lemma, ms) => waitFor(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('vocab').objectStore('vocab').getAll(); q.onsuccess = () => res(q.result.some(v => v.lemma === ${JSON.stringify(lemma)} && !v.deleted)); }; })`, ms);
+    const remoteAdds = (lemma, id) => ev(`(() => { const f = JSON.parse(localStorage.getItem('__fakeFile')); const j = JSON.parse(f.content); j.data.vocab.push(${JSON.stringify(vocabRec(id, lemma))}); f.content = JSON.stringify(j); f.modifiedTime = new Date(Date.now() + 5).toISOString(); localStorage.setItem('__fakeFile', JSON.stringify(f)); })()`);
+    const c0 = await ev(`__driveCalls.length`);
+    await sleep(5200);
+    const quiet = await ev(`__driveCalls.slice(${c0})`);
+    ok("nothing changed on Drive: at least 2 checks, each one only the metadata request (no download, no upload)", quiet.length >= 2 && quiet.every((c) => c === "GET /drive/v3/files"), JSON.stringify(quiet));
+    await remoteAdds("pelican", "remote-p");
+    ok("another machine's change reaches this tab by itself", await waitLocal("pelican", 9000));
+    ok("and that round did download the file", await ev(`__driveCalls.some((c) => c.startsWith('GET /drive/v3/files/'))`));
+
+    // hidden tab: the poll stops
+    await ev(`Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange'))`);
+    await sleep(1800);
+    const h0 = await ev(`__driveCalls.length`);
+    await remoteAdds("heron", "remote-h");
+    await sleep(5500);
+    ok("hidden tab: no request at all and the change is not pulled", (await ev(`__driveCalls.length`)) === h0 && !(await hasLocal("heron")), `${h0} -> ${await ev(`__driveCalls.length`)}`);
+    await ev(`Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange'))`);
+    ok("tab visible again: the poll resumes and the change arrives", await waitLocal("heron", 9000));
+
+    // offline: the poll stops; back online it catches up
+    await ev(`Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline'))`);
+    ok("offline: status 'Offline'", await waitStatus("Offline", 4000), await status());
+    const o0 = await ev(`__driveCalls.length`);
+    await remoteAdds("ibis", "remote-i");
+    await sleep(5500);
+    ok("offline: no request at all", (await ev(`__driveCalls.length`)) === o0 && !(await hasLocal("ibis")));
+    await ev(`Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true }); window.dispatchEvent(new Event('online'))`);
+    ok("back online: it syncs and the change arrives", (await waitLocal("ibis", 9000)) && (await waitStatus("Đã đồng bộ", 6000)), await status());
     const syncWarn = consoleMsgs.filter((m) => m.startsWith("warning: sync:"));
     for (let i = consoleMsgs.length - 1; i >= 0; i--) if (syncWarn.includes(consoleMsgs[i])) consoleMsgs.splice(i, 1);
     console.log(`(expected sync warnings ignored: ${syncWarn.length})`);

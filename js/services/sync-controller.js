@@ -3,9 +3,10 @@
 // dispatches `elh:data-changed` with detail { fromSync: true } so screens reload without triggering another push.
 import { exportRaw, replaceAllRaw } from "./repo.js";
 import { exportAll, hasLocalData } from "./backup.js";
-import { createDriveClient, syncOnce, sameSnapshot } from "./sync-drive.js";
+import { createDriveClient, syncOnce, sameSnapshot, checkRemoteChanged } from "./sync-drive.js";
+import { shouldPoll } from "./sync-status.js";
 import { getAccessToken, requestToken, loadGis, clearToken, revokeToken, validToken } from "./google-auth.js";
-import { PUSH_DELAY_MS, FOCUS_PULL_MIN_MS } from "../config.js";
+import { PUSH_DELAY_MS, FOCUS_PULL_MIN_MS, POLL_INTERVAL_MS } from "../config.js";
 
 // Flags only: never a token (spec: tokens stay in memory).
 const KEY = { connected: "elh.sync.connected", backup: "elh.sync.firstBackup", last: "elh.sync.lastSyncAt" };
@@ -20,9 +21,13 @@ export const isConnected = () => store.get(KEY.connected) === "1";
 let state = { status: "off", lastSyncAt: null, message: "" };
 export const getSyncState = () => state;
 
+let pollTimer = null;
+let remoteModified = null; // modifiedTime of elh-data.json as of the last cycle of this tab; the poll compares against it
+
 function setState(patch) {
   state = { ...state, ...patch };
   document.dispatchEvent(new CustomEvent("elh:sync-state", { detail: state }));
+  updatePolling(); // connect, disconnect, needs-login, offline... all start or stop the poll
 }
 
 const client = createDriveClient({ fetch: (...args) => globalThis.fetch(...args), getToken: getAccessToken });
@@ -63,10 +68,13 @@ let pushTimer = null;
 
 async function cycle() {
   lastRunAt = Date.now();
+  clearTimeout(pushTimer); // this cycle pushes whatever is pending
+  pushTimer = null;
   setState({ status: "syncing" });
   try {
     await ensureFirstBackup();
     const result = await syncOnce({ client, readLocal: exportRaw, writeLocal });
+    remoteModified = result.modifiedTime ?? null;
     const iso = new Date().toISOString();
     store.set(KEY.last, iso);
     setState({ status: "synced", lastSyncAt: iso, message: "" });
@@ -76,16 +84,9 @@ async function cycle() {
   }
 }
 
-// One cycle at a time in this tab (and, with Web Locks, across tabs). A request made during a cycle reruns it.
-export function syncNow() {
-  if (!isConnected()) return Promise.resolve();
-  if (inFlight) {
-    again = true;
-    return inFlight;
-  }
-  clearTimeout(pushTimer);
-  pushTimer = null;
-  const run = navigator.locks ? navigator.locks.request("elh-sync", cycle) : cycle();
+// One cycle (or poll check) at a time in this tab and, with Web Locks, across tabs: the same lock for both.
+function runExclusive(fn) {
+  const run = navigator.locks ? navigator.locks.request("elh-sync", fn) : fn();
   inFlight = Promise.resolve(run).finally(() => {
     inFlight = null;
     if (again) {
@@ -94,6 +95,49 @@ export function syncNow() {
     }
   });
   return inFlight;
+}
+
+// A request made during a cycle reruns it afterwards.
+export function syncNow() {
+  if (!isConnected()) return Promise.resolve();
+  if (inFlight) {
+    again = true;
+    return inFlight;
+  }
+  return runExclusive(cycle);
+}
+
+// ---- Poll: while the tab is visible, look at the Drive file every 60 s (spec 7.2) ----
+
+const canPoll = () => shouldPoll({ connected: isConnected(), visible: document.visibilityState === "visible", online: navigator.onLine, status: state.status });
+
+// Start the timer when polling is allowed and stop it when it is not (hidden tab, offline, signed out, disconnected).
+function updatePolling() {
+  if (canPoll()) {
+    if (!pollTimer) pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
+  } else if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+// Only the file's modifiedTime is fetched. Download and merge happen only when it differs from the last cycle (or
+// when the last attempt failed, so a recovered connection is noticed at once). Never overlaps a running cycle.
+async function pollOnce() {
+  if (!canPoll() || inFlight) return;
+  runExclusive(async () => {
+    if (!canPoll()) return; // the state changed while waiting for the lock
+    let check;
+    try {
+      check = await checkRemoteChanged({ client, lastModified: remoteModified });
+    } catch (e) {
+      handleError(e);
+      return;
+    }
+    const recovering = state.status === "offline" || state.status === "error";
+    if (!check.changed && !recovering) return; // nothing new on Drive: no download, no merge, status line untouched
+    await cycle();
+  });
 }
 
 function schedulePush() {
@@ -149,6 +193,7 @@ export function initSync() {
     if (await checkDirty()) schedulePush();
   });
   document.addEventListener("visibilitychange", async () => {
+    updatePolling();
     if (document.visibilityState === "hidden") {
       if (pushTimer || (await checkDirty())) syncNow(); // leaving: do not wait for the timer
     } else {
@@ -157,6 +202,7 @@ export function initSync() {
   });
   window.addEventListener("focus", focusPull);
   window.addEventListener("online", () => {
+    updatePolling();
     if (isConnected() && (state.status === "offline" || state.status === "error")) syncNow();
   });
   window.addEventListener("offline", () => {

@@ -31,3 +31,9 @@ export function describeSync(state, nowMs = Date.now()) {
       return { text: "Chưa kết nối Drive", level: "off" };
   }
 }
+
+// The 60-second poll runs only while the learner can see the tab, is online, and is connected and signed in.
+// It stops (not just skips) as soon as one of these stops being true.
+export function shouldPoll({ connected, visible, online, status }) {
+  return Boolean(connected) && visible === true && online !== false && status !== "needs-login" && status !== "off";
+}

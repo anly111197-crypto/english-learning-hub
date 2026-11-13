@@ -71,14 +71,16 @@ export function createDriveClient({ fetch: fetchFn, getToken }) {
   }
 
   return {
-    // Id of the oldest file with the sync name (two devices creating it at once converge on the same one).
-    async findFile() {
+    // { id, modifiedTime } of the oldest file with the sync name (two devices creating it at once converge on the
+    // same one), or null. One small request: this is also what the 60-second poll uses to see whether anything changed.
+    async fileMeta() {
       const q = encodeURIComponent(`name = '${SYNC_FILE_NAME}' and trashed = false`);
-      const fields = encodeURIComponent("files(id,createdTime)");
+      const fields = encodeURIComponent("files(id,createdTime,modifiedTime)");
       const res = await call(`${API}/drive/v3/files?spaces=appDataFolder&q=${q}&orderBy=createdTime&pageSize=10&fields=${fields}`);
       if (!res) return null;
       const json = JSON.parse(await bodyText(res));
-      return json.files?.[0]?.id ?? null;
+      const f = json.files?.[0];
+      return f ? { id: f.id, modifiedTime: f.modifiedTime ?? null } : null;
     },
     // Text of the file, or null when it no longer exists.
     async readFile(id) {
@@ -92,22 +94,25 @@ export function createDriveClient({ fetch: fetchFn, getToken }) {
         `${JSON.stringify({ name: SYNC_FILE_NAME, parents: ["appDataFolder"] })}\r\n` +
         `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
         `${JSON.stringify(payload)}\r\n--${boundary}--`;
-      const res = await call(`${API}/upload/drive/v3/files?uploadType=multipart&fields=id`, {
+      const res = await call(`${API}/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime`, {
         method: "POST",
         headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
         body,
       });
       if (!res) throw new SyncError("drive", "Google Drive không tạo được tệp đồng bộ.");
-      return JSON.parse(await bodyText(res)).id;
+      const meta = JSON.parse(await bodyText(res));
+      return { id: meta.id, modifiedTime: meta.modifiedTime ?? null };
     },
-    // Returns false when the file vanished meanwhile.
+    // Returns { id, modifiedTime }, or null when the file vanished meanwhile.
     async updateFile(id, payload) {
-      const res = await call(`${API}/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media`, {
+      const res = await call(`${API}/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media&fields=id,modifiedTime`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json; charset=UTF-8" },
         body: JSON.stringify(payload),
       });
-      return Boolean(res);
+      if (!res) return null;
+      const meta = JSON.parse(await bodyText(res));
+      return { id: meta.id, modifiedTime: meta.modifiedTime ?? null };
     },
   };
 }
@@ -117,16 +122,18 @@ export function createDriveClient({ fetch: fetchFn, getToken }) {
 // deps: client, readLocal() -> data, writeLocal(merged, baseLocal) -> boolean (false = local data changed since
 // `baseLocal` was read, nothing written), now() -> ms.
 // Never writes anything locally unless the Drive file was read and validated; never overwrites an unreadable
-// Drive file. Result: { created, changedLocal, pushed }.
+// Drive file. Result: { created, changedLocal, pushed, modifiedTime } (modifiedTime of the Drive file as it is after
+// this cycle: the poll compares against it).
 export async function syncOnce({ client, readLocal, writeLocal, now = Date.now }) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const local = await readLocal();
-    const fileId = await client.findFile();
-    let text = fileId ? await client.readFile(fileId) : null;
+    const meta = await client.fileMeta();
+    const fileId = meta?.id ?? null;
+    const text = fileId ? await client.readFile(fileId) : null;
 
     if (text === null) { // no file (first sync ever, or it was deleted): create it from the local data
-      await client.createFile(buildPayload(local, now()));
-      return { created: true, changedLocal: false, pushed: true };
+      const made = await client.createFile(buildPayload(local, now()));
+      return { created: true, changedLocal: false, pushed: true, modifiedTime: made?.modifiedTime ?? null };
     }
 
     let remote;
@@ -143,12 +150,26 @@ export async function syncOnce({ client, readLocal, writeLocal, now = Date.now }
       changedLocal = true;
     }
     let pushed = false;
+    let modifiedTime = meta.modifiedTime;
     if (!sameSnapshot(merged, remote)) {
       const payload = buildPayload(merged, now());
-      if (!(await client.updateFile(fileId, payload))) await client.createFile(payload); // file vanished meanwhile
+      const after = (await client.updateFile(fileId, payload)) ?? (await client.createFile(payload)); // file vanished meanwhile
+      modifiedTime = after?.modifiedTime ?? null;
       pushed = true;
     }
-    return { created: false, changedLocal, pushed };
+    return { created: false, changedLocal, pushed, modifiedTime };
   }
   throw new SyncError("busy", "Dữ liệu trên máy đang thay đổi liên tục, sẽ thử đồng bộ lại sau.");
+}
+
+// ---- The 60-second poll ----
+
+// One small request: has the Drive file changed since the last cycle? `lastModified` is the modifiedTime kept from
+// that cycle (null = unknown, e.g. nothing synced yet in this tab). Returns { changed, modifiedTime }.
+// A missing file counts as changed (the full cycle recreates it). Unchanged means: no download, no merge.
+export async function checkRemoteChanged({ client, lastModified }) {
+  const meta = await client.fileMeta();
+  if (!meta) return { changed: true, modifiedTime: null };
+  const changed = !lastModified || !meta.modifiedTime || meta.modifiedTime !== lastModified;
+  return { changed, modifiedTime: meta.modifiedTime };
 }

@@ -1,14 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDriveClient, syncOnce, SyncError, sameSnapshot, buildPayload } from "../js/services/sync-drive.js";
-import { describeSync, agoText } from "../js/services/sync-status.js";
+import { createDriveClient, syncOnce, SyncError, sameSnapshot, buildPayload, checkRemoteChanged } from "../js/services/sync-drive.js";
+import { describeSync, agoText, shouldPoll } from "../js/services/sync-status.js";
 import { STORE_NAMES } from "../js/services/schema.js";
 
 const TOKEN = "ya29.SECRET-TEST-TOKEN";
 
 // In-memory stand-in for the Drive REST endpoints used by sync-drive.js.
 function fakeDrive() {
-  const drive = { files: [], calls: [], fail: null, status: null, nextId: 1 };
+  const drive = { files: [], calls: [], fail: null, status: null, nextId: 1, tick: 0 };
+  const stamp = () => new Date(1800000000000 + ++drive.tick * 1000).toISOString(); // every write moves modifiedTime
   drive.fetch = async (url, init = {}) => {
     drive.calls.push(`${init.method ?? "GET"} ${new URL(url).pathname}`);
     if (drive.fail) throw drive.fail;
@@ -18,7 +19,7 @@ function fakeDrive() {
     const json = (o) => new Response(JSON.stringify(o), { status: 200 });
     if (u.pathname === "/drive/v3/files" && !init.method) {
       const ordered = [...drive.files].sort((a, b) => a.createdTime.localeCompare(b.createdTime));
-      return json({ files: ordered.map((f) => ({ id: f.id, createdTime: f.createdTime })) });
+      return json({ files: ordered.map((f) => ({ id: f.id, createdTime: f.createdTime, modifiedTime: f.modifiedTime })) });
     }
     const m = /^\/(?:upload\/)?drive\/v3\/files\/([^/]+)$/.exec(u.pathname);
     if (m && !init.method) {
@@ -29,16 +30,17 @@ function fakeDrive() {
       const f = drive.files.find((x) => x.id === m[1]);
       if (!f) return new Response("", { status: 404 });
       f.content = init.body;
-      return json({ id: f.id });
+      f.modifiedTime = stamp();
+      return json({ id: f.id, modifiedTime: f.modifiedTime });
     }
     if (u.pathname === "/upload/drive/v3/files" && init.method === "POST") {
       const boundary = /boundary=(.+)$/.exec(init.headers["Content-Type"])[1];
       const parts = init.body.split(`--${boundary}`).filter((p) => p.includes("Content-Type"));
       const meta = JSON.parse(parts[0].split("\r\n\r\n")[1]);
       assert.deepEqual(meta.parents, ["appDataFolder"]);
-      const f = { id: `f${drive.nextId++}`, name: meta.name, createdTime: new Date(1700000000000 + drive.nextId * 1000).toISOString(), content: parts[1].split("\r\n\r\n")[1].trim() };
+      const f = { id: `f${drive.nextId++}`, name: meta.name, createdTime: new Date(1700000000000 + drive.nextId * 1000).toISOString(), content: parts[1].split("\r\n\r\n")[1].trim(), modifiedTime: stamp() };
       drive.files.push(f);
-      return json({ id: f.id });
+      return json({ id: f.id, modifiedTime: f.modifiedTime });
     }
     return new Response("", { status: 400 });
   };
@@ -75,7 +77,7 @@ test("first sync creates elh-data.json in appDataFolder in the backup format", a
   const drive = fakeDrive();
   const a = device(drive, [word("1", "alpha")]);
   const res = await a.sync();
-  assert.deepEqual(res, { created: true, changedLocal: false, pushed: true });
+  assert.deepEqual({ ...res, modifiedTime: undefined }, { created: true, changedLocal: false, pushed: true, modifiedTime: undefined });
   assert.equal(drive.files.length, 1);
   assert.equal(drive.files[0].name, "elh-data.json");
   const file = drive.content();
@@ -98,7 +100,7 @@ test("pull, merge, push: both devices end with the union and a quiet sync pushes
   assert.deepEqual(lemmas(a), ["alpha", "beta"]);
   const before = drive.calls.length;
   const quiet = await a.sync();
-  assert.deepEqual(quiet, { created: false, changedLocal: false, pushed: false });
+  assert.deepEqual({ ...quiet, modifiedTime: undefined }, { created: false, changedLocal: false, pushed: false, modifiedTime: undefined });
   assert.ok(!drive.calls.slice(before).some((c) => c.startsWith("PATCH")));
 });
 
@@ -285,4 +287,97 @@ test("describeSync gives the four sidebar states", () => {
   assert.equal(agoText("2026-02-01T11:59:50.000Z", now), "vừa xong");
   assert.equal(agoText("2026-02-01T09:00:00.000Z", now), "3 giờ trước");
   assert.equal(agoText("2026-01-30T12:00:00.000Z", now), "2 ngày trước");
+});
+
+
+// ---- 60-second poll: look at modifiedTime only, download and merge only when it changed ----
+
+const isDownload = (c) => /^GET \/drive\/v3\/files\/[^/]+$/.test(c); // alt=media read of the file body
+
+test("sync cycle reports the Drive file's modifiedTime: after a push it is the new one, after a quiet pull the same", async () => {
+  const drive = fakeDrive();
+  const a = device(drive, [word("1", "alpha")]);
+  const first = await a.sync();
+  assert.equal(first.modifiedTime, drive.files[0].modifiedTime);
+  const quiet = await a.sync();
+  assert.equal(quiet.pushed, false);
+  assert.equal(quiet.modifiedTime, drive.files[0].modifiedTime);
+  a.data.vocab.push(word("2", "beta", { updatedAt: "2026-02-02T00:00:00.000Z" }));
+  const pushed = await a.sync("2026-02-02T00:00:01.000Z");
+  assert.equal(pushed.pushed, true);
+  assert.equal(pushed.modifiedTime, drive.files[0].modifiedTime);
+});
+
+test("poll: nothing changed on Drive -> only the metadata request is made (no download, no write, no push)", async () => {
+  const drive = fakeDrive();
+  const a = device(drive, [word("1", "alpha")]);
+  const { modifiedTime } = await a.sync();
+  drive.calls.length = 0;
+  const res = await checkRemoteChanged({ client: a.client, lastModified: modifiedTime });
+  assert.deepEqual(res, { changed: false, modifiedTime });
+  assert.deepEqual(drive.calls, ["GET /drive/v3/files"]);
+});
+
+test("poll: our own push does not look like a change from outside", async () => {
+  const drive = fakeDrive();
+  const a = device(drive, [word("1", "alpha")]);
+  const b = device(drive, [word("2", "beta")]);
+  await a.sync();
+  const mine = await b.sync(); // pulls alpha, pushes the union
+  assert.equal(mine.pushed, true);
+  const res = await checkRemoteChanged({ client: b.client, lastModified: mine.modifiedTime });
+  assert.equal(res.changed, false);
+});
+
+test("poll: another machine pushed -> changed; the full cycle then brings the data in and records the new modifiedTime", async () => {
+  const drive = fakeDrive();
+  const a = device(drive, [word("1", "alpha")]);
+  const b = device(drive);
+  let last = (await a.sync()).modifiedTime;
+  await b.sync();
+  b.data.vocab.push(word("2", "beta", { updatedAt: "2026-02-03T00:00:00.000Z" }));
+  await b.sync("2026-02-03T00:00:01.000Z");
+  const seen = await checkRemoteChanged({ client: a.client, lastModified: last });
+  assert.equal(seen.changed, true);
+  const cycle = await a.sync("2026-02-03T00:01:00.000Z");
+  assert.equal(cycle.changedLocal, true);
+  assert.deepEqual(lemmas(a), ["alpha", "beta"]);
+  last = cycle.modifiedTime;
+  drive.calls.length = 0;
+  assert.equal((await checkRemoteChanged({ client: a.client, lastModified: last })).changed, false);
+  assert.ok(!drive.calls.some(isDownload));
+});
+
+test("poll: nothing known yet, no file on Drive, or Drive without a modifiedTime all count as changed (full cycle decides)", async () => {
+  const drive = fakeDrive();
+  const a = device(drive, [word("1", "alpha")]);
+  assert.equal((await checkRemoteChanged({ client: a.client, lastModified: "2026-01-01T00:00:00.000Z" })).changed, true); // no file yet
+  await a.sync();
+  assert.equal((await checkRemoteChanged({ client: a.client, lastModified: null })).changed, true);
+  delete drive.files[0].modifiedTime;
+  assert.equal((await checkRemoteChanged({ client: a.client, lastModified: "x" })).changed, true);
+});
+
+test("poll: a network error or 401 is reported as such and nothing else happens", async () => {
+  const drive = fakeDrive();
+  const a = device(drive, [word("1", "alpha")]);
+  const { modifiedTime } = await a.sync();
+  drive.fail = new TypeError("Failed to fetch");
+  await assert.rejects(checkRemoteChanged({ client: a.client, lastModified: modifiedTime }), (e) => e.code === "network");
+  drive.fail = null;
+  const expired = createDriveClient({ fetch: drive.fetch, getToken: async () => "expired" });
+  await assert.rejects(checkRemoteChanged({ client: expired, lastModified: modifiedTime }), (e) => e.code === "auth");
+  assert.deepEqual(lemmas(a), ["alpha"]);
+});
+
+test("shouldPoll: only connected + visible tab + online + signed in; each one stops it", () => {
+  const on = { connected: true, visible: true, online: true, status: "synced" };
+  assert.equal(shouldPoll(on), true);
+  assert.equal(shouldPoll({ ...on, status: "syncing" }), true);
+  assert.equal(shouldPoll({ ...on, status: "error" }), true); // keeps trying: it notices when Drive is back
+  assert.equal(shouldPoll({ ...on, connected: false }), false);
+  assert.equal(shouldPoll({ ...on, visible: false }), false);
+  assert.equal(shouldPoll({ ...on, online: false }), false);
+  assert.equal(shouldPoll({ ...on, status: "needs-login" }), false);
+  assert.equal(shouldPoll({ ...on, status: "off" }), false);
 });
