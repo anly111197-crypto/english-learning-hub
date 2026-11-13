@@ -5,6 +5,7 @@ import { devView } from "./views/dev.js";
 import { practiceView } from "./views/practice.js";
 import { practiceRunView } from "./views/practice-run.js";
 import { practiceNotebooksView } from "./views/practice-notebooks.js";
+import { aiWritingView, aiSpeakingView } from "./views/ai-studio.js";
 import { vocabView } from "./views/vocab.js";
 import { errorsView } from "./views/errors.js";
 import { warmupView } from "./views/warmup.js";
@@ -28,6 +29,8 @@ const VIEWS = {
   dashboard: dashboardView,
   practice: practiceView,
   "practice-notebooks": practiceNotebooksView,
+  "ai-writing": aiWritingView,
+  "ai-speaking": aiSpeakingView,
   vocab: vocabView,
   errors: errorsView,
   warmup: warmupView,

@@ -572,7 +572,7 @@ try {
 
     // ---- fixed, then written again -> Lặp lại ----
     await evalJs(`${errCard("He go to")}.querySelector('input[type=checkbox]').click()`);
-    ok("bulk bar: 1 selected; exercise button disabled with its note", await evalJs(`document.querySelector('.bulk-bar').innerText.includes('1 đã chọn') && [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Tạo bài tập')).disabled && document.querySelector('.exercise-col').innerText.includes('Có ở Bước 8b') && document.querySelector('.exercise-selected').textContent === 'Đã chọn 1 lỗi.'`));
+    ok("bulk bar: 1 selected; exercise button disabled with its note", await evalJs(`document.querySelector('.bulk-bar').innerText.includes('1 đã chọn') && [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Tạo bài tập')).disabled && document.querySelector('.exercise-col').innerText.includes('Có ở Bước 8c') && document.querySelector('.exercise-selected').textContent === 'Đã chọn 1 lỗi.'`));
     await clickText(".bulk-bar button", "Đánh dấu đã khắc phục"); await sleep(700);
     errors = await dbAll("errors");
     ok("marked fixed", errors.find((e) => e.original.startsWith("He go")).status === "fixed");
@@ -2025,6 +2025,201 @@ try {
     await go(BASE + "#/", W, H);
     await sleep(900);
     ok("Dashboard has no enrich card when nothing waits", (await count("[data-role=enrich-card]")) === 0);
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "ai-writing" || scenario === "ai-writing-m") {
+    // Writing & Speaking AI (step 8b): an essay written here (invented text, not Cambridge), a sample answer made by this
+    // script (no real Claude), three tabs, the trays, saving into the notebook / word bank / matrix. 1280px and 390px.
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const mobile = scenario === "ai-writing-m";
+    const [W, H] = mobile ? [390, 844] : [1280, 800];
+    const typeText = (t) => send("Input.insertText", { text: t });
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.innerText ?? ''`);
+    const count = (sel) => ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+      await sleep(350);
+    };
+    const dbRaw = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result); }; })`);
+    const dbLive = async (store) => (await dbRaw(store)).filter((x) => !x.deleted);
+    const putRec = (store, rec) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction(${JSON.stringify(store)}, 'readwrite'); tx.objectStore(${JSON.stringify(store)}).put(${JSON.stringify(rec)}); tx.oncomplete = () => res(true); tx.onerror = tx.onabort = () => res('IDB error: ' + (tx.error && tx.error.name)); }; })`);
+    const toastText = () => text(".status-line > span");
+    const setPaste = (s) => ev(`window.__paste = ${JSON.stringify(s)}`);
+    const setValue = async (sel, v) => { await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.focus(); e.select(); return true; })()`); await typeText(v); };
+    const choose = (sel, v) => ev(`(() => { const s = document.querySelector(${JSON.stringify(sel)}); s.value = ${JSON.stringify(String(v))}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    const noOverflow = () => ev(`document.documentElement.scrollWidth <= innerWidth`);
+    const readJson = async (obj) => { await setPaste(typeof obj === "string" ? obj : JSON.stringify(obj)); await realClick("[data-role=ai-paste]"); await realClick("[data-role=ai-read]"); };
+    const now = new Date().toISOString();
+    const today = await ev(`(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })()`);
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: `Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText(t) { window.__clip = t; window.__clipActive = navigator.userActivation.isActive; return Promise.resolve(); }, readText() { return Promise.resolve(window.__paste || ''); } } });` });
+
+    const ESSAY = "In my opinion the technology has changed a lot. Also the technology has changed our lives, and I think it have many benefits. Many peoples agree with this.";
+    const QUESTION = "Some people believe that technology makes life easier. To what extent do you agree or disagree?";
+    const CORRECTED = "In my opinion technology has changed a lot. Also technology has changed our lives, and I think it has many benefits. Many people agree with this.";
+    const BAND7 = "Technology has transformed daily life, and I firmly believe that its benefits outweigh its drawbacks.";
+    const rec = (extra) => ({ createdAt: now, updatedAt: now, deleted: false, ...extra });
+
+    await go(BASE + "#/practice", W, H);
+    await waitFor(`document.querySelectorAll('.matrix tbody tr').length > 0`, 15000);
+    // Data that already exists: a finished piece from the practice screen, a known error, a known word, a band in the matrix.
+    await putRec("submissions", rec({ id: "sub-practice", kind: "writing", source: { book: 15, test: 1, task: 2 }, taskType: "", prompt: QUESTION, text: ESSAY, wordCount: 27, durationSec: 1800, status: "draft", doneAt: now }));
+    await putRec("errors", rec({ id: "old-err", original: "The information are useful.", corrected: "The information is useful.", type: "articles", signature: "articles:zero-article-uncountable", explanationVi: "Danh từ không đếm được.", correctExample: "Advice is helpful.", occurrences: 2, firstSeen: today, lastSeen: today, status: "practicing", warmupStreak: 1, enriched: true }));
+    await putRec("vocab", rec({ id: "old-mitigate", word: "mitigate", lemma: "mitigate", lemmaPos: "mitigate|verb", pos: "verb", ipa: "/ˈmɪtɪɡeɪt/", meaningVi: "giảm nhẹ", definitionEn: "", topic: "", collocations: ["mitigate risk"], synonyms: [], contexts: [{ sentence: "We must mitigate the risk.", source: null, date: today }], box: 4, nextReview: "2030-01-01", lapses: 2, lastReviewedAt: null, enriched: true }));
+    await putRec("attempts", rec({ id: "old-w2", book: 15, test: 1, skill: "W", task: 2, band: 5.5, date: today, durationMin: 40, note: "ghi chú cũ" }));
+    await go(BASE + "#/ai/writing", W, H);
+
+    ok("the Writing & Speaking screen replaces the placeholder: form, button, two tabs", await waitFor(`document.querySelector('[data-role=ai-analyze]')`, 8000) && (await count(".ai-modes a")) === 2);
+    ok("the screen fits the width", await noOverflow());
+    ok("Task 2 is the default and the Task 1 reminder is hidden", (await ev(`document.querySelector('[data-role=ai-task]').value`)) === "2" && await ev(`document.querySelector('[data-role=ai-image-reminder]').hidden`));
+    await choose("[data-role=ai-task]", 1);
+    ok("Task 1: 'Nhớ đính kèm ảnh biểu đồ khi dán prompt vào Claude' is shown", await ev(`(() => { const r = document.querySelector('[data-role=ai-image-reminder]'); return !r.hidden && r.textContent.includes('Nhớ đính kèm ảnh biểu đồ khi dán prompt vào Claude'); })()`));
+    await choose("[data-role=ai-task]", 2);
+    ok("back to Task 2: reminder hidden again", await ev(`document.querySelector('[data-role=ai-image-reminder]').hidden`));
+    ok("the picker lists the piece written on the practice screen", await ev(`[...document.querySelectorAll('[data-role=ai-picker] option')].some((o) => o.value === 'sub-practice' && o.textContent === 'Cam 15 · Test 1 · Task 2 · 27 từ · Đã viết')`), await ev(`[...document.querySelectorAll('[data-role=ai-picker] option')].map((o) => o.textContent).join(' | ')`));
+
+    // open the piece: source, question and text are filled in
+    await choose("[data-role=ai-picker]", "sub-practice");
+    ok("opening it fills the source, the question and the text", await waitFor(`document.querySelector('[data-role=ai-text]')?.value.length > 0`, 6000)
+      && (await ev(`({ b: document.querySelector('[data-role=ai-book]').value, t: document.querySelector('[data-role=ai-test]').value, k: document.querySelector('[data-role=ai-task]').value, q: document.querySelector('[data-role=ai-prompt]').value, x: document.querySelector('[data-role=ai-text]').value })`)).x === ESSAY
+      && (await ev(`location.hash`)) === "#/ai/writing?id=sub-practice");
+    ok("word count shows 28 từ", (await text("[data-role=ai-count]")) === "28 từ", await text("[data-role=ai-count]"));
+
+    // ---- copy the prompt, paste bad answers ----
+    await realClick("[data-role=ai-analyze]");
+    ok("Phân tích với Claude opens the copy / paste block", await waitFor(`document.querySelector('[data-role=ai-panel]:not([hidden]) [data-role=ai-copy]')`, 4000));
+    await realClick("[data-role=ai-copy]");
+    const clip = await ev(`window.__clip ?? ''`);
+    ok("the prompt (copied inside the click) has the task, the question, the essay between markers and the known signature", clip.includes("writing_task2") && clip.includes(QUESTION) && clip.includes(`<<<BEGIN>>>\n${ESSAY}\n<<<END>>>`) && clip.includes('"articles:zero-article-uncountable"') && (await ev(`window.__clipActive === true`)));
+    ok("the prompt asks for minimal correction, a separate band7Text, the average overall and at most 2 repeats", /MINIMAL correction/.test(clip) && /band7Text/.test(clip) && /average of the four criteria, rounded to the nearest 0\.5/.test(clip) && /at most 2 times/.test(clip) && !/ATTACH/.test(clip));
+    ok("'Mở Claude' link and the 'Dán' button are there", await ev(`document.querySelector('[data-role=ai-open-claude]').href === 'https://claude.ai/new' && document.querySelector('[data-role=ai-paste]').getBoundingClientRect().height >= 44`));
+    const base = (extra = {}) => ({
+      schemaVersion: 1, task: "writing_task2",
+      bands: { overall: 7.0, TR: 6.0, CC: 6.5, LR: 6.0, GRA: 6.5 },
+      criteriaFeedbackVi: { TR: "Trả lời đúng đề, ý chưa phát triển sâu.", CC: "Liên kết ổn.", LR: "Từ vựng còn lặp.", GRA: "Còn lỗi hòa hợp chủ vị." },
+      errors: [
+        { original: "the technology has changed", corrected: "technology has changed", start: 3, end: 17, type: "articles", signature: "articles:zero-article-uncountable", explanationVi: "Technology không đếm được, không cần the.", correctExample: "Information is power.", severity: "medium" },
+        { original: "it have", corrected: "it has", type: "subject-verb-agreement", signature: "subject-verb-agreement:third-person-s", explanationVi: "Chủ ngữ it đi với has.", correctExample: "It has a point.", severity: "high" },
+        { original: "Many peoples", corrected: "Many people", type: "plurals-countability", signature: "plurals-countability:irregular-plural", explanationVi: "People đã là số nhiều.", correctExample: "Many people agree.", severity: "low" },
+      ],
+      minimalCorrectedText: CORRECTED, band7Text: BAND7,
+      vocabularySuggestions: [
+        { word: "mitigate", lemma: "mitigate", pos: "verb", ipa: "/ˈmɪtɪɡeɪt/", meaningVi: "giảm nhẹ", collocations: ["mitigate the impact"], example: "Cities must mitigate the effects of heat." },
+        { word: "alleviate", lemma: "alleviate", pos: "verb", ipa: "/əˈliːvieɪt/", meaningVi: "làm dịu bớt", collocations: ["alleviate poverty"], example: "New jobs can alleviate poverty." },
+      ],
+      ...extra,
+    });
+    await readJson("Xin lỗi, tôi không thể giúp được.");
+    ok("not JSON: Vietnamese error, no result", (await text("[data-role=ai-error]")).includes("Không thấy JSON") && (await ev(`document.querySelector('[data-role=ai-result]').hidden`)));
+    const bad = async (name, obj, pattern) => { await readJson(obj); const msg = await text("[data-role=ai-error]"); ok(name, pattern.test(msg) && msg.includes("Không có gì được lưu") && (await ev(`document.querySelector('[data-role=ai-result]').hidden`)), msg.slice(0, 160)); };
+    await bad("a Task 1 answer pasted for Task 2 is refused", { ...base(), task: "writing_task1" }, /writing_task1/);
+    await bad("the wrong criteria set (TA instead of TR) is refused", { ...base(), bands: { overall: 6, TA: 6, CC: 6, LR: 6, GRA: 6 } }, /TA.*không thuộc bộ tiêu chí|thiếu TR/);
+    await bad("a band that is not a multiple of 0.5 is refused", { ...base(), bands: { overall: 6, TR: 6.3, CC: 6, LR: 6, GRA: 6 } }, /bands\.TR/);
+    await bad("a band above 9 is refused", { ...base(), bands: { overall: 6, TR: 9.5, CC: 6, LR: 6, GRA: 6 } }, /bands\.TR/);
+    await bad("a missing field (band7Text) is refused", { ...base(), band7Text: "" }, /thiếu band7Text/);
+    ok("nothing was saved by the bad answers", (await dbLive("errors")).length === 1 && (await dbLive("vocab")).length === 1);
+
+    // ---- a good answer ----
+    await readJson("Đây là kết quả:\n```json\n" + JSON.stringify(base(), null, 2) + "\n```");
+    ok("the result appears", await waitFor(`!document.querySelector('[data-role=ai-result]').hidden`, 4000));
+    await shot(mobile ? "ai-m-result.png" : "ai-d-result.png");
+    ok("band tổng is the average of the 4 criteria: 6.5; Claude's 7.0 is shown beside it", (await text("[data-role=ai-overall] .ai-overall-value")) === "6.5" && (await text("[data-role=ai-overall-diff]")) === "Claude: 7.0 · Tính theo 4 tiêu chí: 6.5", await text("[data-role=ai-overall-diff]"));
+    ok("the 4 Task 2 criteria (TR, CC, LR, GRA) with their comments", (await ev(`[...document.querySelectorAll('.ai-criterion')].map((c) => c.dataset.c).join(',')`)) === "TR,CC,LR,GRA" && (await text(".ai-criterion[data-c=GRA]")).includes("hòa hợp chủ vị"));
+    ok("three tabs", (await ev(`[...document.querySelectorAll('.ai-tabs [data-tab]')].map((b) => b.textContent).join('|')`)) === "Bài gốc có highlight|So sánh gốc–sửa|Bản Band 7.0+");
+    ok("highlight: both places of 'the technology has changed' (start/end were wrong), 'it have' and 'Many peoples' are marked", (await count(".ai-hl")) === 4 && (await ev(`[...document.querySelectorAll('.ai-hl')].map((m) => m.textContent).join('|')`)) === "the technology has changed|the technology has changed|it have|Many peoples");
+    ok("the highlighted text is the whole essay, unchanged", (await ev(`document.querySelector('[data-role=ai-hl-text]').textContent`)) === ESSAY);
+    await realClick(".ai-hl[data-i='1']");
+    ok("clicking a mark shows the mistake, the fix and the explanation", (await text("[data-role=ai-pop]")).includes("it have") && (await text("[data-role=ai-pop]")).includes("it has") && (await text("[data-role=ai-pop]")).includes("Chủ ngữ it đi với has"));
+    await realClick("[data-tab=cmp]");
+    ok("compare tab: only the minimal fixes are marked (wrong side struck through, fixed side marked)", (await ev(`[...document.querySelectorAll('[data-role=ai-cmp-wrong] .ai-del')].map((e) => e.textContent).join('|')`)).includes("the") && (await ev(`[...document.querySelectorAll('[data-role=ai-cmp-right] .ai-ins')].map((e) => e.textContent).join('|')`)).includes("has") && (await ev(`document.querySelector('[data-role=ai-cmp-right]').textContent`)) === CORRECTED);
+    await realClick("[data-tab=b7]");
+    ok("Band 7.0+ tab shows only band7Text", (await text("[data-role=ai-band7]")) === BAND7 && await ev(`document.querySelector('[data-panel=hl]').hidden && document.querySelector('[data-panel=cmp]').hidden`));
+    await realClick("[data-tab=hl]");
+
+    // trays
+    const rows = (kind) => ev(`[...document.querySelectorAll('.ai-row[data-kind=${kind}]')].map((r) => ({ label: r.querySelector('[data-role=ai-label]').textContent, checked: r.querySelector('input').checked }))`);
+    const errRows = await rows("error");
+    const vocRows = await rows("vocab");
+    ok("error tray: 3 rows, labels 'Đã có · lần 2' / 'Mới' / 'Mới'; medium and high ticked, low not", JSON.stringify(errRows) === JSON.stringify([{ label: "Đã có · lần 2", checked: true }, { label: "Mới", checked: true }, { label: "Mới", checked: false }]), JSON.stringify(errRows));
+    ok("word tray: 'Đã có · lần 1' for the known word, 'Mới' for the other, both ticked", JSON.stringify(vocRows) === JSON.stringify([{ label: "Đã có · lần 1", checked: true }, { label: "Mới", checked: true }]), JSON.stringify(vocRows));
+    ok("save bar: 'Lưu đã chọn (4 mục)' and the band line names the cell", (await text("[data-role=ai-save]")) === "Lưu đã chọn (4 mục)" && (await text(".ai-band-line")).includes("Ghi Band 6.5 vào ô W Task 2 của Cam 15 Test 1"), await text(".ai-band-line"));
+    ok("save bar stays on screen", await ev(`(() => { const r = document.querySelector('.ai-savebar').getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; })()`));
+    if (mobile) ok("390px: nothing overflows", await noOverflow());
+
+    // save: first decline the band overwrite
+    await realClick("[data-role=ai-save]");
+    ok("the matrix already has Band 5.5: asks before overwriting, naming both bands", await waitFor(`document.querySelector('dialog.modal[open]')`, 4000) && (await text("dialog.modal[open]")).includes("Band 5.5") && (await text("dialog.modal[open]")).includes("Band 6.5"), await text("dialog.modal[open]"));
+    await ev(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Hủy').click()`);
+    await sleep(900);
+    ok("declined: the items are saved, the band is kept", (await toastText()).includes("Đã lưu 2 lỗi") && (await toastText()).includes("2 từ") && (await toastText()).includes("Band giữ nguyên"), await toastText());
+    const errs = await dbLive("errors");
+    const known = errs.find((e) => e.id === "old-err");
+    const created = errs.find((e) => e.signature === "subject-verb-agreement:third-person-s");
+    ok("known error: occurrences 2 -> 3, same card, status kept", known.occurrences === 3 && known.status === "practicing" && known.lastSeen === today, `${known.occurrences}`);
+    ok("new error: created with its signature, corrected, explanation, enriched, 1 occurrence", !!created && created.original === "it have" && created.corrected === "it has" && created.type === "subject-verb-agreement" && created.enriched === true && created.occurrences === 1 && created.status === "new");
+    ok("the unticked low error was not saved", !errs.some((e) => e.original === "Many peoples") && errs.length === 2);
+    const vocab = await dbLive("vocab");
+    const mit = vocab.find((v) => v.id === "old-mitigate");
+    const alle = vocab.find((v) => v.lemma === "alleviate");
+    ok("known word keeps its box 4, 2 lapses and review date; gets Claude's example in its own field; contexts untouched", mit.box === 4 && mit.lapses === 2 && mit.nextReview === "2030-01-01" && mit.exampleEn === "Cities must mitigate the effects of heat." && mit.contexts.length === 1 && mit.contexts[0].sentence === "We must mitigate the risk." && mit.collocations.includes("mitigate the impact") && mit.collocations.includes("mitigate risk"));
+    ok("new word: a complete card, box 1, example in exampleEn, no context sentences", !!alle && alle.enriched === true && alle.box === 1 && alle.pos === "verb" && alle.ipa === "/əˈliːvieɪt/" && alle.meaningVi === "làm dịu bớt" && alle.exampleEn === "New jobs can alleviate poverty." && alle.contexts.length === 0);
+    const occ = await dbLive("occurrences");
+    ok("occurrence records carry the piece and the source (Cam 15, Test 1, W, Task 2)", occ.filter((o) => o.submissionId === "sub-practice" && o.source?.book === 15 && o.source?.test === 1 && o.source?.skill === "W" && o.source?.part === 2).length === 4, String(occ.filter((o) => o.submissionId === "sub-practice").length));
+    const sub = (await dbLive("submissions")).find((r) => r.id === "sub-practice");
+    ok("the piece is now 'analyzed' and keeps the result JSON, the computed bands and what was saved", sub.status === "analyzed" && sub.result?.task === "writing_task2" && sub.bands.overall === 6.5 && sub.bands.claudeOverall === 7 && [sub.bands.c1, sub.bands.c2, sub.bands.c3, sub.bands.c4].join() === "6,6.5,6,6.5" && sub.aiMode === "manual" && sub.saved.errors.length === 2 && sub.saved.vocab.length === 2 && !!sub.doneAt);
+    ok("the attempt still has Band 5.5 (declined)", (await dbLive("attempts")).find((a) => a.id === "old-w2").band === 5.5);
+    ok("saved rows are marked 'Đã lưu' and cannot be saved twice", (await ev(`[...document.querySelectorAll('.ai-row[data-saved=true] [data-role=ai-label]')].map((e) => e.textContent).join(',')`)) === "Đã lưu,Đã lưu,Đã lưu,Đã lưu" && (await text("[data-role=ai-save]")) === "Lưu đã chọn (0 mục)" && !(await ev(`document.querySelector('[data-role=ai-save]').disabled`)));
+
+    // save again: now accept the overwrite; nothing is counted twice
+    await realClick("[data-role=ai-save]");
+    await waitFor(`document.querySelector('dialog.modal[open]')`, 4000);
+    await ev(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Ghi đè').click()`);
+    await sleep(900);
+    const att = (await dbLive("attempts")).find((a) => a.skill === "W" && a.book === 15 && a.test === 1 && a.task === 2);
+    ok("accepted: the W Task 2 band is 6.5, linked to the piece; the old note and minutes are kept", att.band === 6.5 && att.submissionId === "sub-practice" && att.note === "ghi chú cũ" && att.durationMin === 40, JSON.stringify({ b: att.band, s: att.submissionId, n: att.note }));
+    ok("saving again did not count anything twice", (await dbLive("errors")).find((e) => e.id === "old-err").occurrences === 3 && (await dbLive("occurrences")).filter((o) => o.submissionId === "sub-practice").length === 4 && (await dbLive("attempts")).filter((a) => a.skill === "W" && a.test === 1 && a.book === 15).length === 1);
+
+    // the other screens see it
+    await go(BASE + "#/errors", W, H);
+    ok("Grammar Notebook shows the new error and the count of the known one", await waitFor(`document.body.innerText.includes('it have')`, 6000));
+    await go(BASE + "#/vocab", W, H);
+    ok("Vocabulary Bank shows the new word", await waitFor(`document.body.innerText.includes('alleviate')`, 6000));
+    await go(BASE + "#/practice", W, H);
+    if (!mobile) ok("matrix: the W cell of Cam 15 Test 1 shows 6.5", await waitFor(`(() => { const b = [...document.querySelectorAll('.test-cell')].find(x => x.getAttribute('aria-label').startsWith('Cam 15 Test 1.')); const c = b && [...b.querySelectorAll('.band-cell')].find(x => x.querySelector('.band-cell-letter').textContent === 'W'); return !!c && c.textContent.includes('6.5'); })()`, 6000));
+    if (mobile) await go(BASE + "#/practice/15/1", W, H); // the phone layout has no matrix: open the panel by its address
+    else await ev(`[...document.querySelectorAll('.test-cell')].find(x => x.getAttribute('aria-label').startsWith('Cam 15 Test 1.')).click()`);
+    ok("the test panel links to the corrected piece", await waitFor(`document.querySelector('[data-role=view-analysis]')`, 4000) && (await ev(`document.querySelector('[data-role=view-analysis]').getAttribute('href')`)) === "#/ai/writing?id=sub-practice");
+    await go(BASE + "#/ai/writing?id=sub-practice", W, H);
+    ok("reopening the analysed piece shows the saved result without pasting again", await waitFor(`!document.querySelector('[data-role=ai-result]').hidden`, 6000) && (await text("[data-role=ai-overall] .ai-overall-value")) === "6.5" && (await count(".ai-hl")) === 4);
+
+    // Task 1: the image reminder in the prompt, the 'no image' badge; Speaking: no real pronunciation
+    await go(BASE + "#/ai/writing", W, H);
+    await waitFor(`document.querySelector('[data-role=ai-analyze]')`, 6000);
+    await choose("[data-role=ai-task]", 1);
+    await setValue("[data-role=ai-prompt]", "The chart shows the sales of three products. Summarise the information.");
+    await setValue("[data-role=ai-text]", "The chart shows that sales of product A rose while product B fell.");
+    await realClick("[data-role=ai-analyze]");
+    ok("Task 1: the copy step repeats the reminder to attach the chart image", await waitFor(`document.querySelector('[data-role=ai-image-reminder-step]')`, 4000) && (await text("[data-role=ai-image-reminder-step]")).includes("Nhớ đính kèm ảnh biểu đồ khi dán prompt vào Claude"));
+    await realClick("[data-role=ai-copy]");
+    const clip1 = await ev(`window.__clip ?? ''`);
+    ok("Task 1 prompt: image attached by the learner, never guess figures, exact phrase for no image, dataAccuracyChecked, criteria TA", /ATTACH the chart/.test(clip1) && clip1.includes("không kiểm tra được độ chính xác số liệu") && /do not guess any figures/.test(clip1) && clip1.includes('"dataAccuracyChecked"') && clip1.includes('"TA"') && !clip1.includes('"TR"'));
+    const t1 = { schemaVersion: 1, task: "writing_task1", bands: { overall: 6.0, TA: 6.0, CC: 6.0, LR: 6.0, GRA: 6.0 }, criteriaFeedbackVi: { TA: "Không kiểm tra được độ chính xác số liệu vì không có ảnh.", CC: "Ổn.", LR: "Ổn.", GRA: "Ổn." }, errors: [], minimalCorrectedText: "The chart shows that sales of product A rose while product B fell.", band7Text: "Sales of product A climbed while product B declined.", vocabularySuggestions: [], dataAccuracyChecked: false };
+    await readJson(t1);
+    ok("Task 1 result with no image: criteria TA/CC/LR/GRA and the 'chưa kiểm tra số liệu' badge", await waitFor(`!document.querySelector('[data-role=ai-result]').hidden`, 4000) && (await ev(`[...document.querySelectorAll('.ai-criterion')].map((c) => c.dataset.c).join(',')`)) === "TA,CC,LR,GRA" && (await text("[data-role=ai-badge-data]")).includes("Chưa kiểm tra số liệu") && (await count("[data-role=ai-overall-diff]")) === 0);
+    await go(BASE + "#/ai/speaking", W, H);
+    await waitFor(`document.querySelector('[data-role=ai-part]')`, 6000);
+    ok("Speaking screen: Part 1-3, transcript box, note that real pronunciation cannot be assessed", (await count("[data-role=ai-part] option")) === 3 && (await text(".ai")).includes("App không chấm được phát âm thật từ văn bản"));
+    await choose("[data-role=ai-part]", 2);
+    await setValue("[data-role=ai-prompt]", "Describe a place you like to visit.");
+    await setValue("[data-role=ai-text]", "Well, I like to visit the park near my house because it is quiet and I can relax there.");
+    await realClick("[data-role=ai-analyze]");
+    await realClick("[data-role=ai-copy]");
+    const clipS = await ev(`window.__clip ?? ''`);
+    ok("Speaking prompt: typed transcript, cannot hear, P is only an estimate, Part 2", /typed the transcript/.test(clipS) && /cannot hear the learner/.test(clipS) && /ESTIMATE/.test(clipS) && clipS.includes("Speaking Part 2") && clipS.includes('"FC"') && clipS.includes('"P"') && !/ATTACH/.test(clipS));
+    const sp = { schemaVersion: 1, task: "speaking", bands: { overall: 6.0, FC: 6.0, LR: 6.0, GRA: 6.0, P: 6.0 }, criteriaFeedbackVi: { FC: "Nói khá trôi chảy.", LR: "Từ vựng đơn giản.", GRA: "Câu đơn là chủ yếu.", P: "Ước lượng từ văn bản, chưa nghe được giọng thật." }, errors: [], minimalCorrectedText: "Well, I like to visit the park near my house because it is quiet and I can relax there.", band7Text: "I'm fond of visiting the park near my house.", vocabularySuggestions: [] };
+    await readJson(sp);
+    ok("Speaking result: FC, LR, GRA, P and the fixed note that P is only an estimate", await waitFor(`!document.querySelector('[data-role=ai-result]').hidden`, 4000) && (await ev(`[...document.querySelectorAll('.ai-criterion')].map((c) => c.dataset.c).join(',')`)) === "FC,LR,GRA,P" && (await text("[data-role=ai-p-note]")).includes("ước lượng"));
+    ok("no horizontal overflow on the speaking result", await noOverflow());
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "layout") {
     for (const [w, h, n] of [[1280, 800, "d"], [900, 800, "t"], [390, 800, "m"]]) {
       await go(BASE + "#/", w, h);

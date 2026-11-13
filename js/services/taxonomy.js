@@ -51,3 +51,10 @@ export function sourceLabel(source, { short = false } = {}) {
   }
   return `Cam ${source.book} · Test ${source.test}${skill ? ` · ${skill}${part ? " " + part : ""}` : ""}`;
 }
+
+
+// Writing task types offered in the Writing & Speaking screen (stored as submissions.taskType, sent to Claude as given).
+export const WRITING_TASK_TYPES = {
+  1: ["Line graph", "Bar chart", "Pie chart", "Table", "Process", "Map", "Mixed charts"],
+  2: ["Opinion (agree / disagree)", "Discussion (both views)", "Advantages and disadvantages", "Problem and solution", "Two-part question"],
+};

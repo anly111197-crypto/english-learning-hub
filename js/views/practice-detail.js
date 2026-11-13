@@ -15,7 +15,7 @@ const ROWS = [
   { skill: "S", task: null, label: "Speaking", att: (e) => e?.S },
 ];
 
-function skillRow(row, entry, onEdit) {
+function skillRow(row, entry, onEdit, submissions = []) {
   const att = row.att(entry);
   const letter = row.skill;
   const meta = att
@@ -29,7 +29,15 @@ function skillRow(row, entry, onEdit) {
     h("div", { class: "skill-info" },
       h("p", { class: "skill-name" }, row.label, " ", h("span", { class: "skill-score nowrap" }, score)),
       h("p", { class: "skill-meta" }, meta),
-      att?.note ? h("p", { class: "skill-note" }, att.note) : null),
+      att?.note ? h("p", { class: "skill-note" }, att.note) : null,
+      // Writing / Speaking analysed by Claude (step 8b): open the corrected piece
+      (() => {
+        const sub = att?.submissionId ? submissions.find((x) => x.id === att.submissionId && !x.deleted) : null;
+        if (!sub) return null;
+        return sub.status === "analyzed"
+          ? h("a", { class: "link", href: `#/ai/${sub.kind}?id=${sub.id}`, dataset: { role: "view-analysis" } }, "Xem bài sửa (Claude)")
+          : h("a", { class: "link", href: `#/ai/${sub.kind}?id=${sub.id}`, dataset: { role: "analyze-link" } }, "Phân tích với Claude");
+      })()),
     h("button", { type: "button", class: "btn btn-outline btn-sm", onClick: () => onEdit(row.skill, row.task) }, att ? "Sửa" : "Nhập"));
 }
 
@@ -91,14 +99,14 @@ function itemsBlock(items, onCapture) {
 // ctx: { book, test, entry, testRec, isNext, items }
 // on:  { edit(skill, task), enterResults(), togglePin(), editLinks(), quickCapture() }
 export function buildDetail(ctx, on) {
-  const { book, test, entry, testRec, isNext, items, notes = [], notebooks = [] } = ctx;
+  const { book, test, entry, testRec, isNext, items, notes = [], notebooks = [], submissions = [] } = ctx;
   const summary = testSummary(entry);
   const pinned = Boolean(testRec?.pinned);
 
   const node = h("div", { class: "detail" },
     overallLine(summary),
     h("h3", { class: "section-label" }, "Kỹ năng bài test"),
-    h("ul", { class: "skill-list" }, ROWS.map((r) => skillRow(r, entry, on.edit))),
+    h("ul", { class: "skill-list" }, ROWS.map((r) => skillRow(r, entry, on.edit, submissions))),
     writingLine(summary),
     h("div", { class: "detail-actions" },
       h("button", { type: "button", class: "btn btn-primary", onClick: on.enterResults }, "Nhập kết quả"),

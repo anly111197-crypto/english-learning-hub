@@ -8,11 +8,12 @@ const MAX_CELLS = 40000; // very long texts: skip the comparison instead of free
 
 // Returns { wrong: [{ text, changed }], right: [{ text, changed }] }.
 // `changed` on wrong = word removed or replaced; on right = word added or replaced.
-export function diffWords(wrongText, rightText) {
+// options.maxCells raises the size limit (the Writing screen compares whole essays: 250 x 250 words > 40000).
+export function diffWords(wrongText, rightText, { maxCells = MAX_CELLS } = {}) {
   const a = String(wrongText ?? "").match(/\S+/g) ?? [];
   const b = String(rightText ?? "").match(/\S+/g) ?? [];
   const plain = (tokens) => tokens.map((text) => ({ text, changed: false }));
-  if (b.length === 0 || a.length * b.length > MAX_CELLS) return { wrong: plain(a), right: plain(b) };
+  if (b.length === 0 || a.length * b.length > maxCells) return { wrong: plain(a), right: plain(b) };
 
   const ka = a.map(key);
   const kb = b.map(key);

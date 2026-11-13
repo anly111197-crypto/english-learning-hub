@@ -13,10 +13,10 @@ export function loadBookOrder() {
 }
 
 export async function loadPracticeData() {
-  const [attempts, tests, vocab, errors, occurrences, notes, notebooks] = await Promise.all([
-    list("attempts"), list("tests"), list("vocab"), list("errors"), list("occurrences"), list("notes"), list("notebooks"),
+  const [attempts, tests, vocab, errors, occurrences, notes, notebooks, submissions] = await Promise.all([
+    list("attempts"), list("tests"), list("vocab"), list("errors"), list("occurrences"), list("notes"), list("notebooks"), list("submissions"),
   ]);
-  return { attempts, tests, vocab, errors, occurrences, notes, notebooks, bookOrder: loadBookOrder() };
+  return { attempts, tests, vocab, errors, occurrences, notes, notebooks, submissions, bookOrder: loadBookOrder() };
 }
 
 // Everything the Dashboard needs: the practice data plus the warm-up sessions.

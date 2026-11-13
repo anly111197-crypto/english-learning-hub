@@ -241,7 +241,7 @@ function syncPanel() {
 
   const detail = buildDetail({
     book, test, entry, testRec, isNext, items: itemsFor(book, test),
-    notes: notesFor(state.data.notes ?? [], "test", key), notebooks: state.data.notebooks ?? [],
+    notes: notesFor(state.data.notes ?? [], "test", key), notebooks: state.data.notebooks ?? [], submissions: state.data.submissions ?? [],
   }, {
     quickCapture: () => openQuickCapture({ source: { book, test } }),
     edit: (skill, task) => openResultModal({ book, test, skill, task: task ?? 2, entry, onSaved: reload }),

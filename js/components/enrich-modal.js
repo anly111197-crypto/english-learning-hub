@@ -3,6 +3,7 @@
 // The view does not know how the answer arrives: it only talks to js/ai/index.js (step 9 adds the API mode there).
 import { h } from "./dom.js";
 import { openModal } from "./modal.js";
+import { createCopyPaste } from "./copy-paste.js";
 import { showToast } from "./toast.js";
 import { startTask } from "../ai/index.js";
 import { AiFormatError, POS_VALUES } from "../ai/schema.js";
@@ -11,7 +12,6 @@ import { loadEnrichBatch, rowsFor, saveRows } from "../services/enrich-ops.js";
 import { findVocabConflict, findErrorConflict, validateVocabValues, validateErrorValues } from "../services/enrich.js";
 import { splitList } from "../services/vocab-ops.js";
 
-const CLAUDE_URL = "https://claude.ai/new";
 let opening = false;
 
 const field = (label, control, hint) => h("div", { class: "field" },
@@ -49,87 +49,27 @@ function buildDialog(kind, data, session) {
   });
   modal.el.classList.add("modal-wide");
 
-  // ---- Steps 1 and 2: copy the prompt, paste the answer ----
+  // ---- Steps 1 and 2: copy the prompt, paste the answer (shared block, see components/copy-paste.js) ----
   function showPaste(prefill = "") {
-    const note = h("p", { class: "muted enrich-copy-note", role: "status" });
-    const fallback = h("textarea", {
-      class: "input textarea enrich-fallback", readonly: true, rows: "6", hidden: true,
-      "aria-label": "Prompt để tự sao chép", dataset: { role: "enrich-fallback" },
-    });
-    fallback.value = session.prompt;
-    const showFallback = (message) => {
-      fallback.hidden = false;
-      fallback.focus();
-      fallback.select();
-      fallback.setSelectionRange(0, fallback.value.length); // iOS needs the explicit range
-      note.textContent = message;
-    };
-    // The clipboard call must be the first thing in the click handler (Safari iOS only allows it inside the gesture).
-    const onCopy = () => {
-      if (!navigator.clipboard?.writeText) {
-        showFallback("Trình duyệt không cho sao chép tự động. Prompt đã được chọn sẵn: hãy sao chép nó (Ctrl+C, hoặc bấm giữ rồi chọn Sao chép).");
-        return;
-      }
-      navigator.clipboard.writeText(session.prompt).then(
-        () => { fallback.hidden = true; note.textContent = "Đã sao chép prompt. Mở Claude, dán vào, rồi dán câu trả lời của Claude vào ô bên dưới."; },
-        () => showFallback("Không sao chép được tự động. Prompt đã được chọn sẵn: hãy sao chép nó (Ctrl+C, hoặc bấm giữ rồi chọn Sao chép)."));
-    };
-
-    const input = h("textarea", {
-      class: "input textarea enrich-input", rows: "7", placeholder: "Dán câu trả lời JSON của Claude vào đây",
-      "aria-label": "Câu trả lời của Claude", dataset: { role: "enrich-input" },
-      onInput: () => { error.hidden = true; },
-    });
-    input.value = prefill;
-    const error = h("p", { class: "form-error enrich-error", role: "alert", hidden: true, dataset: { role: "enrich-error" } });
-    const pasteNote = h("p", { class: "form-hint enrich-paste-note", role: "status" });
-    const onPaste = () => {
-      if (!navigator.clipboard?.readText) {
-        pasteNote.textContent = "Trình duyệt không cho đọc bộ nhớ tạm. Bấm giữ vào ô bên dưới rồi chọn Dán.";
-        input.focus();
-        return;
-      }
-      navigator.clipboard.readText().then(
-        (text) => {
-          if (!text.trim()) { pasteNote.textContent = "Bộ nhớ tạm đang trống."; return; }
-          input.value = text;
-          error.hidden = true;
-          pasteNote.textContent = "Đã dán. Bấm Đọc JSON để xem kết quả.";
-        },
-        () => { pasteNote.textContent = "Không đọc được bộ nhớ tạm. Bấm giữ vào ô bên dưới rồi chọn Dán."; input.focus(); });
-    };
-
     const rest = data.pending - data.batch.length;
-    fill(body,
-      h("ol", { class: "enrich-steps" },
-        h("li", {}, "Bấm ", h("strong", {}, "Sao chép prompt"), "."),
-        h("li", {}, "Mở Claude, dán prompt và chờ Claude trả về JSON."),
-        h("li", {}, "Sao chép câu trả lời, dán vào ô bên dưới rồi bấm ", h("strong", {}, "Đọc JSON"), ".")),
-      rest > 0 ? h("p", { class: "muted" }, `Lần này gửi ${data.batch.length} ${noun}; còn ${rest} ${noun} nữa sẽ làm ở lần sau.`) : null,
-      h("div", { class: "enrich-actions" },
-        h("button", { type: "button", class: "btn btn-primary", dataset: { role: "enrich-copy" }, onClick: onCopy }, "Sao chép prompt"),
-        h("a", { class: "btn btn-outline", href: CLAUDE_URL, target: "_blank", rel: "noopener noreferrer", dataset: { role: "enrich-open-claude" } }, "Mở Claude")),
-      note, fallback,
-      h("div", { class: "enrich-paste-head" },
-        h("span", { class: "field-label" }, "Câu trả lời của Claude"),
-        h("button", { type: "button", class: "btn btn-outline btn-sm", dataset: { role: "enrich-paste" }, onClick: onPaste }, "Dán")),
-      pasteNote, input, error);
-
+    const cp = createCopyPaste({
+      prompt: session.prompt, prefix: "enrich", prefill,
+      before: [rest > 0 ? h("p", { class: "muted" }, `Lần này gửi ${data.batch.length} ${noun}; còn ${rest} ${noun} nữa sẽ làm ở lần sau.`) : null],
+    });
+    fill(body, cp.node);
     footer.replaceChildren(
       h("button", { type: "button", class: "btn btn-text", onClick: () => modal.close() }, "Hủy"),
       h("button", {
         type: "button", class: "btn btn-primary", dataset: { role: "enrich-read" },
         onClick: () => {
           try {
-            showReview(session.accept(input.value), input.value);
+            showReview(session.accept(cp.getText()), cp.getText());
           } catch (e) {
-            error.textContent = e instanceof AiFormatError ? e.message : "Không đọc được câu trả lời.";
-            error.hidden = false;
+            cp.showError(e instanceof AiFormatError ? e.message : "Không đọc được câu trả lời.");
           }
         },
       }, "Đọc JSON"));
   }
-
   // ---- Step 3: review ----
   function showReview(result, pasted) {
     const rows = rowsFor(kind, data.batch, result.items);

@@ -211,7 +211,7 @@ function renderBulk() {
       await reload();
     } }, "Đánh dấu đã khắc phục"),
     h("button", { type: "button", class: "btn btn-outline btn-sm", dataset: { role: "enrich-selected" }, onClick: () => openEnrich("error", { selectedIds: ids.slice(0, 20) }) }, `Hoàn thiện ${Math.min(n, 20)} lỗi với Claude`),
-    h("button", { type: "button", class: "btn btn-outline btn-sm", disabled: true, title: "Có ở Bước 8b" }, `Tạo bài tập từ ${n} lỗi`, h("span", { class: "btn-note" }, "Có ở Bước 8b")),
+    h("button", { type: "button", class: "btn btn-outline btn-sm", disabled: true, title: "Có ở Bước 8c" }, `Tạo bài tập từ ${n} lỗi`, h("span", { class: "btn-note" }, "Có ở Bước 8c")),
     h("button", { type: "button", class: "btn btn-danger btn-sm", onClick: async () => {
       const ok = await confirmModal({ title: "Xoá lỗi", danger: true, confirmLabel: `Xoá ${n} lỗi`, message: `Xoá ${n} lỗi đã chọn? Việc này không thể hoàn tác từ trong ứng dụng (hãy sao lưu trước nếu cần).` });
       if (!ok) return;
@@ -345,7 +345,7 @@ export const errorsView = {
       h("h2", { class: "exercise-title" }, "Bài tập từ lỗi đã chọn"),
       h("p", { class: "muted" }, "Chọn các lỗi trong danh sách để tạo bài tập điền, sửa và viết lại, rồi chấm."),
       h("p", { class: "exercise-selected" }, "Chưa chọn lỗi nào."),
-      h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 8b" }, "Tạo bài tập", h("span", { class: "btn-note" }, "Có ở Bước 8b")));
+      h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 8c" }, "Tạo bài tập", h("span", { class: "btn-note" }, "Có ở Bước 8c")));
 
     container.replaceChildren(h("div", { class: "errors" },
       h("h1", { class: "page-title" }, "Grammar Notebook"),

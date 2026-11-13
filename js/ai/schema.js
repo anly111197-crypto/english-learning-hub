@@ -138,3 +138,144 @@ export function parseEnrichResult(task, pasted, sentIds) {
   }
   return { items, missingIds: sentIds.filter((id) => !seen.has(id)) };
 }
+
+// ---- Writing & Speaking analysis (step 8b, spec 5.6 and 7.3) ----
+
+export const ANALYSIS_TASKS = ["writing_task1", "writing_task2", "speaking"];
+// The four criteria of each task, in the order they are stored as bands.c1..c4.
+export const CRITERIA = {
+  writing_task1: ["TA", "CC", "LR", "GRA"],
+  writing_task2: ["TR", "CC", "LR", "GRA"],
+  speaking: ["FC", "LR", "GRA", "P"],
+};
+export const CRITERIA_LABELS = {
+  TA: "Task Achievement", TR: "Task Response", CC: "Coherence & Cohesion", LR: "Lexical Resource",
+  GRA: "Grammatical Range & Accuracy", FC: "Fluency & Coherence", P: "Pronunciation",
+};
+export const SEVERITIES = ["high", "medium", "low"];
+
+export const isBandValue = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 9 && (v * 2) % 1 === 0;
+const wholeNumber = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+
+function checkError(raw) {
+  const problems = [];
+  const original = text(raw.original);
+  if (!original) problems.push("thiếu original");
+  const corrected = text(raw.corrected);
+  if (!corrected) problems.push("thiếu corrected");
+  const type = text(raw.type).toLowerCase();
+  if (!ERROR_TYPE_SLUGS.includes(type)) problems.push(`type "${text(raw.type)}" không thuộc 10 nhóm lỗi`);
+  const signature = text(raw.signature).toLowerCase().replace(/\s/g, "");
+  const colon = signature.indexOf(":");
+  if (colon < 1 || colon === signature.length - 1) problems.push('signature phải có dạng "nhóm:quy-tắc"');
+  else if (ERROR_TYPE_SLUGS.includes(type) && signature.slice(0, colon) !== type) problems.push(`signature "${signature}" phải bắt đầu bằng "${type}:"`);
+  const explanationVi = text(raw.explanationVi);
+  if (!explanationVi) problems.push("thiếu explanationVi");
+  if (raw.correctExample !== undefined && raw.correctExample !== null && typeof raw.correctExample !== "string") problems.push("correctExample phải là chuỗi");
+  const severity = raw.severity === undefined || raw.severity === null ? "medium" : text(raw.severity).toLowerCase();
+  if (!SEVERITIES.includes(severity)) problems.push(`severity "${text(raw.severity)}" không hợp lệ (high, medium hoặc low)`);
+  if (problems.length) return { problems };
+  // start / end are only a hint: when they are not whole numbers or do not fit, the text is searched for `original`.
+  const start = wholeNumber(raw.start);
+  const end = wholeNumber(raw.end);
+  return {
+    item: {
+      original, corrected, type, signature, explanationVi, correctExample: text(raw.correctExample), severity,
+      start: start !== null && end !== null && end > start ? start : null, end: start !== null && end !== null && end > start ? end : null,
+    },
+  };
+}
+
+function checkSuggestion(raw) {
+  const res = checkVocabItem({ ...raw, id: "x", lemma: raw.lemma ?? raw.word });
+  if (res.problems) return res;
+  const word = text(raw.word) || res.item.lemma;
+  return { item: { word, lemma: res.item.lemma, pos: res.item.pos, ipa: res.item.ipa, meaningVi: res.item.meaningVi, collocations: res.item.collocations, example: res.item.example } };
+}
+
+const isObject = (v) => v && typeof v === "object" && !Array.isArray(v);
+
+// Parse and check the answer to writing_task1 / writing_task2 / speaking. Returns the cleaned result.
+// Throws AiFormatError (Vietnamese) and the caller saves nothing. A different overall from the one the four criteria
+// give is NOT an error: the app recomputes it (services/analysis.js).
+export function parseAnalysisResult(task, pasted) {
+  const criteria = CRITERIA[task];
+  if (!criteria) throw new AiFormatError(`Tác vụ "${task}" chưa hỗ trợ.`);
+  const json = extractJson(pasted);
+  if (json.schemaVersion !== undefined && json.schemaVersion !== AI_SCHEMA_VERSION) {
+    throw new AiFormatError(`schemaVersion ${json.schemaVersion} không đúng (cần ${AI_SCHEMA_VERSION}).`);
+  }
+  if (json.task !== task) {
+    throw new AiFormatError(`JSON này là của tác vụ "${json.task ?? "không rõ"}", không phải "${task}". Có thể bạn đã dán nhầm câu trả lời hoặc chọn sai Task. Không có gì được lưu.`);
+  }
+
+  const problems = [];
+  const bands = {};
+  if (!isObject(json.bands)) {
+    problems.push('thiếu "bands"');
+  } else {
+    const allowed = ["overall", ...criteria];
+    const extra = Object.keys(json.bands).filter((k) => !allowed.includes(k));
+    if (extra.length) problems.push(`bands có tiêu chí "${extra.join(", ")}" không thuộc bộ tiêu chí của tác vụ này (cần ${criteria.join(", ")})`);
+    for (const key of allowed) {
+      const v = json.bands[key];
+      if (v === undefined) problems.push(`bands thiếu ${key}`);
+      else if (!isBandValue(v)) problems.push(`bands.${key} = ${JSON.stringify(v)} không hợp lệ (số từ 0 đến 9, bước 0.5)`);
+      else bands[key] = v;
+    }
+  }
+  const criteriaFeedbackVi = {};
+  if (!isObject(json.criteriaFeedbackVi)) {
+    problems.push('thiếu "criteriaFeedbackVi"');
+  } else {
+    for (const key of criteria) {
+      const v = text(json.criteriaFeedbackVi[key]);
+      if (!v) problems.push(`criteriaFeedbackVi thiếu nhận xét ${key}`);
+      else criteriaFeedbackVi[key] = v;
+    }
+    const extra = Object.keys(json.criteriaFeedbackVi).filter((k) => !criteria.includes(k) && k !== "overall");
+    if (extra.length) problems.push(`criteriaFeedbackVi có tiêu chí "${extra.join(", ")}" không thuộc bộ tiêu chí của tác vụ này`);
+  }
+
+  const errors = [];
+  if (!Array.isArray(json.errors)) {
+    problems.push('"errors" phải là một danh sách (có thể rỗng)');
+  } else {
+    json.errors.forEach((raw, i) => {
+      if (!isObject(raw)) { problems.push(`Lỗi ${i + 1} không phải một đối tượng`); return; }
+      const res = checkError(raw);
+      if (res.problems) problems.push(`Lỗi ${i + 1}: ${res.problems.join("; ")}`);
+      else errors.push(res.item);
+    });
+  }
+
+  const minimalCorrectedText = typeof json.minimalCorrectedText === "string" ? json.minimalCorrectedText.trim() : "";
+  if (!minimalCorrectedText) problems.push("thiếu minimalCorrectedText");
+  const band7Text = typeof json.band7Text === "string" ? json.band7Text.trim() : "";
+  if (!band7Text) problems.push("thiếu band7Text");
+
+  const vocabularySuggestions = [];
+  if (json.vocabularySuggestions !== undefined && !Array.isArray(json.vocabularySuggestions)) {
+    problems.push('"vocabularySuggestions" phải là một danh sách');
+  } else {
+    (json.vocabularySuggestions ?? []).forEach((raw, i) => {
+      if (!isObject(raw)) { problems.push(`Từ gợi ý ${i + 1} không phải một đối tượng`); return; }
+      const res = checkSuggestion(raw);
+      if (res.problems) problems.push(`Từ gợi ý ${i + 1}: ${res.problems.join("; ")}`);
+      else vocabularySuggestions.push(res.item);
+    });
+  }
+
+  let dataAccuracyChecked = null;
+  if (task === "writing_task1") {
+    if (typeof json.dataAccuracyChecked !== "boolean") problems.push("thiếu dataAccuracyChecked (true hoặc false)");
+    else dataAccuracyChecked = json.dataAccuracyChecked;
+  }
+
+  if (problems.length) {
+    const shown = problems.slice(0, MAX_PROBLEMS_SHOWN).map((p) => `${p}.`).join(" ");
+    const more = problems.length > MAX_PROBLEMS_SHOWN ? ` (và ${problems.length - MAX_PROBLEMS_SHOWN} lỗi nữa)` : "";
+    throw new AiFormatError(`${shown}${more} Không có gì được lưu.`);
+  }
+  return { task, bands, criteriaFeedbackVi, errors, minimalCorrectedText, band7Text, vocabularySuggestions, dataAccuracyChecked };
+}

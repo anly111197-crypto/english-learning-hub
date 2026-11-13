@@ -143,6 +143,12 @@ Tổng kết: số từ nhớ (x/y), số lỗi sửa đúng (x/5), danh sách t
 - Dưới: 2 khay **Lỗi phát hiện** và **Từ vựng nên học** có checkbox, nhãn "Mới" / "Đã có · lần N"; thanh đáy "Lưu đã chọn (N mục)".
 - Lưu xong: band Writing/Speaking ghi vào ô tương ứng của ma trận.
 - **Bắt buộc sửa:** nhãn "Claude"; bỏ "Chuẩn Cambridge IELTS 2024"; tab So sánh chỉ hiện **sửa tối thiểu** (mục 7.3), cách diễn đạt nâng cấp chỉ ở tab Band 7.0+.
+- **Bước 8b (chế độ copy/paste):** route `#/ai/writing` và `#/ai/speaking` (cùng một màn, hai tab), `?id=<submissionId>` mở lại một bài. Ô "Bài đã lưu" liệt kê bài Writing đã xong ở Luyện đề (`doneAt`), bài đã phân tích và bài gõ ở màn này (`origin: "studio"`); văn bản gõ tự lưu vào `submissions`. Không có đồng hồ ở màn này (viết có giờ ở màn Luyện đề). Dạng bài chọn từ danh sách cố định, gửi cho Claude đúng như đã chọn.
+- Task 1: màn và bước sao chép đều nhắc "Nhớ đính kèm ảnh biểu đồ khi dán prompt vào Claude"; app không lưu ảnh. Prompt dặn: có ảnh thì kiểm tra số liệu và overview; không có ảnh thì ghi "không kiểm tra được độ chính xác số liệu" trong nhận xét TA, không đoán số liệu, và `dataAccuracyChecked: false` (màn hiện nhãn "Chưa kiểm tra số liệu (không có ảnh biểu đồ)").
+- Speaking: người học dán transcript tự ghi; prompt nói rõ không chấm được phát âm thật từ văn bản; P chỉ ước lượng và màn luôn ghi chú điều đó.
+- Band tổng: prompt dặn overall = trung bình 4 tiêu chí làm tròn tới 0.5; app tự tính lại (quy tắc 6.1). Nếu Claude trả khác thì hiện cả hai ("Claude: X · Tính theo 4 tiêu chí: Y") và dùng Y để lưu và ghi vào ma trận. Không từ chối JSON vì lý do này.
+- Highlight: mọi chỗ tìm thấy `original` (nguyên từ, không tô giữa một từ khác) đều được tô, kể cả khi lỗi lặp lại nhiều chỗ; `start`/`end` chỉ là gợi ý và được bỏ qua khi lệch. Lỗi không tìm thấy vị trí vẫn nằm trong khay.
+- Khay lỗi: prompt dặn mỗi signature lặp lại chỉ liệt kê tối đa 2 lần; mặc định tick sẵn lỗi `high` và `medium`, `low` bỏ tick. Nhãn "Mới" hoặc "Đã có · lần N" (N = số lần đã ghi nhận). Lưu: lỗi theo signature (rồi theo đúng câu sai), từ theo lemma+pos (rồi thẻ ghi nhanh chỉ có chữ cùng lemma), giữ box thẻ cũ; `example` của Claude vào `exampleEn`, không vào `contexts`. Submission chuyển `analyzed`, lưu JSON kết quả, `bands` (overall tính lại, c1..c4, `claudeOverall`) và danh sách mục đã lưu (không cộng đôi khi lưu lại). Band ghi vào attempt W (theo Task) hoặc S của Cam/Test đã chọn, hỏi trước nếu ô đã có band khác.
 
 ### 5.7 Vocabulary Bank
 - Thanh: tìm kiếm, tổng từ · đến hạn · chờ Claude điền; nút + Thêm từ, **Ôn ngay (N đến hạn)**.
@@ -308,6 +314,8 @@ Ví dụ `writing_task2`:
   ]
 }
 ```
+Tác vụ phân tích (Bước 8b): `bands` có `overall` và đúng 4 tiêu chí của tác vụ — `writing_task1`: TA, CC, LR, GRA; `writing_task2`: TR, CC, LR, GRA; `speaking`: FC, LR, GRA, P — mỗi band là số từ 0 đến 9, bước 0.5; `criteriaFeedbackVi` có đủ 4 khoá. `errors[]` như ví dụ trên (`start`/`end` tuỳ chọn và không được tin; `severity` high, medium hoặc low, mặc định medium; `signature` bắt đầu bằng `type:`). `minimalCorrectedText`, `band7Text` bắt buộc; `vocabularySuggestions[]` có thể rỗng. `writing_task1` thêm `dataAccuracyChecked` (boolean, bắt buộc). Kiểm tra ở `parseAnalysisResult` (`js/ai/schema.js`); JSON sai thì báo tiếng Việt và không lưu gì.
+
 Tác vụ enrich (Bước 8a), cùng khung `{ "schemaVersion": 1, "task": ..., "items": [...] }`, mỗi mục giữ nguyên `id` đã gửi:
 ```json
 // vocab_enrich
@@ -364,7 +372,8 @@ Quy tắc chung: số, nút, tag dùng `white-space: nowrap`; tiêu đề thẻ 
 | 6b | Luyện đề trong app (mục 5.9) | Laptop: chọn PDF + 4 audio, làm Listening, nộp, chấm → ô L trên ma trận đúng band; tải lại giữa chừng không mất đáp án; 390px dùng được bằng tab Đề/Phiếu |
 | 7 | Đồng bộ Google Drive | Sửa trên iPhone, mở Windows thấy trong ≤ 1 phút |
 | 8a | AI copy/paste (2a): "Hoàn thiện với Claude" cho từ và lỗi ghi nhanh (mục 6.6, tác vụ `vocab_enrich`, `error_enrich`) | Ghi 3 từ chỉ có chữ + 1 lỗi → sao chép prompt → dán JSON mẫu → duyệt, sửa, tick → lưu: thẻ có IPA, nghĩa, collocation, lỗi có nhóm + signature; trùng thì gộp, giữ box Leitner của thẻ cũ; JSON sai thì báo và không lưu gì |
-| 8b | AI copy/paste (2a): Writing & Speaking (mục 5.6), tạo bài tập từ lỗi | Dán JSON hợp lệ → khay lưu → sổ cập nhật |
+| 8b | AI copy/paste (2a): Writing & Speaking (mục 5.6): `writing_task1`, `writing_task2`, `speaking`; band tổng app tự tính lại từ 4 tiêu chí; khay lỗi / từ lưu và chống trùng như 8a | Viết một bài Task 2, sao chép prompt sang claude.ai, dán JSON về, xem 3 tab, lưu lỗi và từ → thấy trong Grammar Notebook, Vocabulary Bank và ô W trên ma trận; JSON sai thì báo và không lưu gì |
+| 8c | AI copy/paste (2a): tạo bài tập từ lỗi (`exercise_generate`, `exercise_grade`) | Chọn lỗi → bài tập → dán JSON → chấm và cập nhật sổ lỗi |
 | 9 | AI qua proxy (2b) | Không có key trong mã nguồn; chấm Task 2 < 60s |
 
 Mỗi bước: chạy thử trên Chrome desktop + Safari iOS, rồi mới sang bước sau.
