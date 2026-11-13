@@ -280,7 +280,7 @@ try {
     const modalOpen = () => waitFor(`document.querySelector('dialog.modal[open]') && document.activeElement && document.activeElement.closest('dialog.modal')`, 5000);
     const modalGone = () => waitFor(`!document.querySelector('dialog.modal')`, 5000);
     const newWord = async () => { await pressChar("n"); await modalOpen(); await keyEv("1", { code: "Digit1", vk: 49, modifiers: 1 }); await sleep(120); }; // N reopens on the last used tab, so Alt+1
-    const toast = () => evalJs(`document.querySelector('.status-line')?.textContent ?? ''`);
+    const toast = () => evalJs(`document.querySelector('.status-line > span')?.textContent ?? ''`);
     const dbAll = (store) => evalJs(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; })`);
     const click = (sel) => evalJs(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.click(); return true; })()`);
     const typeInto = (sel, v) => evalJs(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', {bubbles:true})); e.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
@@ -460,7 +460,7 @@ try {
 
     // ---- Bulk: mark learned, CSV, delete ----
     await evalJs(`document.querySelectorAll('.vocab-table tbody input[type=checkbox]')[0].click(); document.querySelectorAll('.vocab-table tbody input[type=checkbox]')[1].click();`);
-    ok("bulk bar appears with 2 selected and the Claude button disabled", await evalJs(`!document.querySelector('.bulk-bar').hidden && document.querySelector('.bulk-bar').innerText.includes('2 đã chọn') && [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Claude')).disabled`));
+    ok("bulk bar appears with 2 selected and an enabled 'Hoàn thiện 2 từ với Claude' button (step 8a)", await evalJs(`!document.querySelector('.bulk-bar').hidden && document.querySelector('.bulk-bar').innerText.includes('2 đã chọn') && (() => { const b = [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Claude')); return !!b && !b.disabled && b.textContent === 'Hoàn thiện 2 từ với Claude'; })()`));
     await evalJs(`[...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent === 'Đánh dấu đã thuộc').click()`); await sleep(700);
     const learned = (await dbAll("vocab")).filter((v) => v.box === 5);
     const in30 = await evalJs(`(() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })()`);
@@ -572,7 +572,7 @@ try {
 
     // ---- fixed, then written again -> Lặp lại ----
     await evalJs(`${errCard("He go to")}.querySelector('input[type=checkbox]').click()`);
-    ok("bulk bar: 1 selected; exercise button disabled with its note", await evalJs(`document.querySelector('.bulk-bar').innerText.includes('1 đã chọn') && [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Tạo bài tập')).disabled && document.querySelector('.exercise-col').innerText.includes('Có ở Bước 8') && document.querySelector('.exercise-selected').textContent === 'Đã chọn 1 lỗi.'`));
+    ok("bulk bar: 1 selected; exercise button disabled with its note", await evalJs(`document.querySelector('.bulk-bar').innerText.includes('1 đã chọn') && [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Tạo bài tập')).disabled && document.querySelector('.exercise-col').innerText.includes('Có ở Bước 8b') && document.querySelector('.exercise-selected').textContent === 'Đã chọn 1 lỗi.'`));
     await clickText(".bulk-bar button", "Đánh dấu đã khắc phục"); await sleep(700);
     errors = await dbAll("errors");
     ok("marked fixed", errors.find((e) => e.original.startsWith("He go")).status === "fixed");
@@ -1772,7 +1772,225 @@ try {
     for (let i = consoleMsgs.length - 1; i >= 0; i--) if (syncWarn.includes(consoleMsgs[i])) consoleMsgs.splice(i, 1);
     console.log(`(expected sync warnings ignored: ${syncWarn.length})`);
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
-  } else if (scenario === "layout") {
+  } else if (scenario === "enrich" || scenario === "enrich-m") {
+    // "Hoàn thiện với Claude" (step 8a): 3 words + 1 error captured with the real keyboard, a sample answer made here
+    // (no real Claude), reviewed, edited and saved. Duplicates fold into old cards; the warm-up can use the new data.
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const mobile = scenario === "enrich-m";
+    const [W, H] = mobile ? [390, 844] : [1280, 800];
+    const keyEv = async (key, { code, vk, text, modifiers = 0 }) => {
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: vk, text, modifiers });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: vk, modifiers });
+    };
+    const KEYS = { Enter: { code: "Enter", vk: 13, text: "\r" }, Tab: { code: "Tab", vk: 9 } };
+    const press = (name) => keyEv(name, KEYS[name]);
+    const pressChar = (c) => keyEv(c, { code: "Key" + c.toUpperCase(), vk: c.toUpperCase().charCodeAt(0), text: c });
+    const typeText = (t) => send("Input.insertText", { text: t });
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.innerText ?? ''`);
+    const count = (sel) => ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+      await sleep(350);
+    };
+    const dbRaw = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result); }; })`);
+    const dbLive = async (store) => (await dbRaw(store)).filter((x) => !x.deleted);
+    const putRec = (store, rec) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction(${JSON.stringify(store)}, 'readwrite'); tx.objectStore(${JSON.stringify(store)}).put(${JSON.stringify(rec)}); tx.oncomplete = () => res(true); tx.onerror = tx.onabort = () => res('IDB error: ' + (tx.error && tx.error.name) + ' ' + (tx.error && tx.error.message)); }; r.onerror = () => res('open error'); })`);
+    const reload = async () => { await send("Page.reload"); await sleep(1300); };
+    const toastText = () => text(".status-line > span");
+    const setPaste = (s) => ev(`window.__paste = ${JSON.stringify(s)}`);
+    const modalOpen = () => waitFor(`document.querySelector('dialog.modal[open]') && document.activeElement && document.activeElement.closest('dialog.modal')`, 5000);
+    const modalGone = () => waitFor(`!document.querySelector('dialog.modal[open]')`, 5000);
+    const replaceValue = async (sel, value) => { await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.focus(); e.select(); return true; })()`); await typeText(value); };
+    const nowIso = new Date().toISOString();
+    const today = await ev(`(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })()`);
+
+    // A fake clipboard: records what was written and whether the click still counted as a user gesture.
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: `Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText(t) { window.__clip = t; window.__clipActive = navigator.userActivation.isActive; return Promise.resolve(); }, readText() { return Promise.resolve(window.__paste || ''); } } });` });
+
+    await go(BASE + "#/vocab", W, H);
+    // The bank prints its count only after it has read the database, so by then the stores exist.
+    await waitFor(`document.querySelector('[data-role=enrich-open]')?.textContent.includes('(')`, 15000);
+    // Cards that already exist: one finished card with progress (box 4), three fillers for wrong choices, one finished error.
+    const oldCard = { id: "old-scarce", word: "scarce", lemma: "scarce", pos: "adjective", lemmaPos: "scarce|adjective", ipa: "/skeəs/", meaningVi: "khan hiếm", definitionEn: "", topic: "", collocations: ["scarce resources"], synonyms: [], contexts: [{ sentence: "Jobs are scarce here.", source: null, date: today }], box: 4, nextReview: "2030-01-01", lapses: 2, lastReviewedAt: null, enriched: true, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deleted: false };
+    await putRec("vocab", oldCard);
+    for (const [i, [w, m]] of [["alpha", "chữ cái đầu"], ["beta", "chữ cái hai"], ["gamma", "chữ cái ba"]].entries()) {
+      await putRec("vocab", { ...oldCard, id: `fill-${i}`, word: w, lemma: w, lemmaPos: `${w}|noun`, pos: "noun", meaningVi: m, collocations: [], contexts: [], box: 5, lapses: 0 });
+    }
+    await putRec("errors", { id: "old-err", original: "Information are useful.", corrected: "Information is useful.", type: "articles", signature: "articles:zero-article-uncountable", explanationVi: "Danh từ không đếm được.", correctExample: "Advice is helpful.", occurrences: 3, firstSeen: today, lastSeen: today, status: "practicing", warmupStreak: 1, enriched: true, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deleted: false });
+    await reload();
+    await waitFor(`document.querySelector('[data-role=enrich-open]')?.textContent.includes('(')`, 15000);
+
+    // ---- Capture with the real keyboard: 3 words (one with no sentence) and 1 error ----
+    const captureWord = async (w, ctx) => {
+      await pressChar("n");
+      await modalOpen();
+      await keyEv("1", { code: "Digit1", vk: 49, modifiers: 1 }); // N reopens on the last tab: make sure it is the word tab
+      await sleep(120);
+      await typeText(w);
+      if (ctx) { await press("Tab"); await typeText(ctx); }
+      await press("Enter");
+      await modalGone();
+      await sleep(300);
+    };
+    await captureWord("mitigate", "Governments must mitigate the effects of climate change.");
+    ok("the save toast has a 'Hoàn thiện với Claude' button", (await toastText()).startsWith("Đã lưu") && (await text(".status-line .toast-action")) === "Hoàn thiện với Claude" && await ev(`document.querySelector('.status-line .toast-action').getBoundingClientRect().height >= 44`));
+    await captureWord("scarcer", "Water is scarcer in the region.");
+    await captureWord("recieve");
+    await pressChar("n");
+    await modalOpen();
+    await keyEv("2", { code: "Digit2", vk: 50, modifiers: 1 });
+    await sleep(150);
+    await typeText("The technology has changed a lot.");
+    await press("Enter");
+    await modalGone();
+    await sleep(300);
+    const vocabNow = await dbLive("vocab");
+    const idOf = (w) => vocabNow.find((v) => v.word === w)?.id;
+    ok("3 words + 1 error saved with enriched:false", ["mitigate", "scarcer", "recieve"].every((w) => vocabNow.find((v) => v.word === w)?.enriched === false) && (await dbLive("errors")).filter((e) => !e.enriched).length === 1);
+
+    // ---- Dashboard card ----
+    await go(BASE + "#/", W, H);
+    ok("Dashboard shows the card with both buttons while something waits", await waitFor(`document.querySelector('[data-role=enrich-card]')`, 6000) && (await text("[data-role=enrich-vocab]")) === "Từ vựng (3)" && (await text("[data-role=enrich-error]")) === "Lỗi sai (1)" && (await text(".enrich-card-text")).startsWith("4 mục"), await text(".enrich-card-text"));
+
+    // ---- Vocabulary Bank: open the dialog ----
+    await go(BASE + "#/vocab", W, H);
+    ok("Vocabulary Bank button 'Hoàn thiện với Claude (3)' is enabled", await waitFor(`document.querySelector('[data-role=enrich-open]')?.textContent === 'Hoàn thiện với Claude (3)' && !document.querySelector('[data-role=enrich-open]').disabled`, 6000));
+    await realClick("[data-role=enrich-open]");
+    ok("dialog opens with the 3 words", await modalOpen() && (await text(".modal-title")) === "Hoàn thiện với Claude · 3 từ");
+    if (mobile) ok("dialog fits the phone width", await ev(`(() => { const r = document.querySelector('dialog.modal').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; })()`));
+    ok("'Mở Claude' opens claude.ai in a new tab", await ev(`(() => { const a = document.querySelector('[data-role=enrich-open-claude]'); return a.href === 'https://claude.ai/new' && a.target === '_blank' && a.rel.includes('noopener'); })()`));
+    ok("'Dán' button is next to the paste box, >=44px", await ev(`(() => { const b = document.querySelector('[data-role=enrich-paste]'); const r = b.getBoundingClientRect(); return r.height >= 44 && r.width >= 44; })()`));
+
+    // copy: first the working clipboard (the call must happen inside the click), then a refusing one
+    await realClick("[data-role=enrich-copy]");
+    const clip = await ev(`window.__clip ?? ''`);
+    ok("copy: the prompt is on the clipboard, written inside the click (user activation active)", clip.includes("vocab_enrich") && ["mitigate", "scarcer", "recieve"].every((w) => clip.includes(w)) && (await ev(`window.__clipActive === true`)));
+    ok("the prompt has the ids, the learner's sentence and no source/progress", [idOf("mitigate"), idOf("scarcer"), idOf("recieve")].every((i) => clip.includes(i)) && clip.includes("Governments must mitigate") && !/"box"|"book"|Cam \d/.test(clip));
+    ok("no fallback box while copying works", await ev(`document.querySelector('[data-role=enrich-fallback]').hidden === true`));
+    await ev(`navigator.clipboard.writeText = () => Promise.reject(new Error('denied'))`);
+    await realClick("[data-role=enrich-copy]");
+    ok("copy refused: a text box with the prompt appears, already selected", await ev(`(() => { const f = document.querySelector('[data-role=enrich-fallback]'); return !f.hidden && f.value.includes('vocab_enrich') && f.selectionStart === 0 && f.selectionEnd === f.value.length && document.activeElement === f; })()`));
+
+    // paste: refused clipboard read -> hint; wrong content -> Vietnamese error and nothing saved
+    await ev(`navigator.clipboard.readText = () => Promise.reject(new Error('denied'))`);
+    await realClick("[data-role=enrich-paste]");
+    ok("paste refused: hint to long-press and paste, box focused", (await text(".enrich-paste-note")).includes("Bấm giữ") && await ev(`document.activeElement === document.querySelector('[data-role=enrich-input]')`));
+    await ev(`navigator.clipboard.readText = () => Promise.resolve(window.__paste || '')`);
+    await setPaste("Xin lỗi, hôm nay tôi không làm được.");
+    await realClick("[data-role=enrich-paste]");
+    ok("'Dán' fills the box from the clipboard", (await ev(`document.querySelector('[data-role=enrich-input]').value`)) === "Xin lỗi, hôm nay tôi không làm được.");
+    await realClick("[data-role=enrich-read]");
+    ok("not JSON: Vietnamese error, still on the paste step", (await text("[data-role=enrich-error]")).includes("Không thấy JSON") && (await count(".enrich-row")) === 0);
+    const wrongIds = JSON.stringify({ schemaVersion: 1, task: "vocab_enrich", items: [{ id: "not-a-real-id", lemma: "x", pos: "noun", ipa: "/x/", meaningVi: "x", collocations: [] }] });
+    await setPaste(wrongIds);
+    await realClick("[data-role=enrich-paste]");
+    await realClick("[data-role=enrich-read]");
+    ok("an id that was not sent: error says nothing was saved", (await text("[data-role=enrich-error]")).includes("không khớp") && (await text("[data-role=enrich-error]")).includes("Không có gì được lưu"));
+    ok("database untouched after both bad answers", (await dbLive("vocab")).filter((v) => !v.enriched).length === 3);
+
+    // ---- A good answer (sample made here), wrapped in chatter and a code fence like Claude does ----
+    const item = (w, o) => ({ id: idOf(w), ...o });
+    const good = JSON.stringify({ schemaVersion: 1, task: "vocab_enrich", items: [
+      item("mitigate", { lemma: "mitigate", pos: "verb", ipa: "/ˈmɪtɪɡeɪt/", meaningVi: "giảm nhẹ", collocations: ["mitigate the impact", "mitigate risk"], example: "Cities must mitigate the effects of heat.", wordFamily: ["mitigation (n)"] }),
+      item("scarcer", { lemma: "scarce", pos: "adjective", ipa: "/skeəs/", meaningVi: "khan hiếm (Claude)", collocations: ["scarce resources", "become scarce"], example: "Fresh water is scarce.", wordFamily: ["scarcity (n)"] }),
+      item("recieve", { lemma: "receive", pos: "verb", ipa: "/rɪˈsiːv/", meaningVi: "nhận được", collocations: ["receive a letter"], example: "I did not receive the email.", wordFamily: [], noteVi: "Bạn gõ \"recieve\", có lẽ ý bạn là \"receive\" (ie, không phải ei)." }),
+    ] }, null, 2);
+    await setPaste(`Đây là kết quả bạn cần:\n\`\`\`json\n${good}\n\`\`\`\nChúc bạn học tốt!`);
+    await realClick("[data-role=enrich-paste]");
+    await realClick("[data-role=enrich-read]");
+    ok("review step: 3 cards, nothing saved yet", await waitFor(`document.querySelectorAll('.enrich-row').length === 3`, 3000) && (await dbLive("vocab")).filter((v) => !v.enriched).length === 3);
+    await shot(mobile ? "enrich-m-review.png" : "enrich-d-review.png");
+    const rowSel = (w, f) => `.enrich-row[data-id="${idOf(w)}"] ${f}`;
+    ok("misspelling note is highlighted and the suggested lemma is in an editable box", (await text(rowSel("recieve", "[data-role=enrich-note]"))).includes("receive") && (await ev(`getComputedStyle(document.querySelector(${JSON.stringify(rowSel("recieve", "[data-role=enrich-note]"))})).borderLeftWidth`)) === "4px" && (await ev(`document.querySelector(${JSON.stringify(rowSel("recieve", "[data-f=lemma]"))}).value`)) === "receive" && !(await ev(`document.querySelector(${JSON.stringify(rowSel("recieve", "[data-f=lemma]"))}).readOnly`)));
+    ok("the other cards have no note", (await count(`${rowSel("mitigate", "[data-role=enrich-note]")}`)) === 0);
+    ok("'scarcer' -> lemma scarce/adjective: plan says it folds into the old card and keeps its box", await ev(`(() => { const p = document.querySelector(${JSON.stringify(rowSel("scarcer", "[data-role=enrich-plan]"))}); return p.dataset.plan === 'merge' && p.textContent.includes('giữ nguyên hộp ôn'); })()`));
+    ok("'mitigate' is a plain update", await ev(`document.querySelector(${JSON.stringify(rowSel("mitigate", "[data-role=enrich-plan]"))}).dataset.plan === 'update'`));
+    // edit: the meaning, and the lemma (the plan follows the edit)
+    await replaceValue(rowSel("mitigate", "[data-f=meaningVi]"), "giảm thiểu");
+    await replaceValue(rowSel("mitigate", "[data-f=lemma]"), "scarce");
+    await ev(`(() => { const s = document.querySelector(${JSON.stringify(rowSel("mitigate", "[data-f=pos]"))}); s.value = 'adjective'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    ok("editing lemma + pos to an existing word flips the plan to 'merge'", await ev(`document.querySelector(${JSON.stringify(rowSel("mitigate", "[data-role=enrich-plan]"))}).dataset.plan === 'merge'`));
+    await replaceValue(rowSel("mitigate", "[data-f=lemma]"), "mitigate");
+    await ev(`(() => { const s = document.querySelector(${JSON.stringify(rowSel("mitigate", "[data-f=pos]"))}); s.value = 'verb'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    ok("and back to 'update' when restored", await ev(`document.querySelector(${JSON.stringify(rowSel("mitigate", "[data-role=enrich-plan]"))}).dataset.plan === 'update'`));
+    // tick boxes
+    ok("save button counts the ticked cards: (3)", (await text("[data-role=enrich-save]")) === "Lưu đã chọn (3)");
+    await realClick(rowSel("mitigate", "[data-f=check]"));
+    ok("unticking one gives 'Lưu đã chọn (2)'", (await text("[data-role=enrich-save]")) === "Lưu đã chọn (2)");
+    await realClick(rowSel("mitigate", "[data-f=check]"));
+    ok("ticking it again gives (3)", (await text("[data-role=enrich-save]")) === "Lưu đã chọn (3)");
+    // an invalid edit blocks the save and keeps the dialog
+    await replaceValue(rowSel("recieve", "[data-f=meaningVi]"), "");
+    await realClick("[data-role=enrich-save]");
+    ok("a ticked card with no meaning blocks the save with a message", (await count(".enrich-row-error:not([hidden])")) === 1 && await ev(`!!document.querySelector('dialog.modal[open] .enrich-row')`) && (await dbLive("vocab")).filter((v) => !v.enriched).length === 3);
+    await replaceValue(rowSel("recieve", "[data-f=meaningVi]"), "nhận được");
+
+    await realClick("[data-role=enrich-save]");
+    ok("saved: dialog closes and the toast reports the merge", await modalGone() && (await toastText()).includes("Đã lưu 3 từ") && (await toastText()).includes("1 được gộp vào mục có sẵn"), await toastText());
+
+    // ---- What is in the database now ----
+    const raw = await dbRaw("vocab");
+    const live = raw.filter((v) => !v.deleted);
+    const mit = live.find((v) => v.lemma === "mitigate");
+    ok("mitigate card: IPA, edited meaning, collocations, pos and enriched:true", !!mit && mit.ipa === "/ˈmɪtɪɡeɪt/" && mit.meaningVi === "giảm thiểu" && mit.pos === "verb" && mit.collocations.includes("mitigate the impact") && mit.collocations.includes("mitigate risk") && mit.enriched === true, JSON.stringify(mit && { ipa: mit.ipa, m: mit.meaningVi, c: mit.collocations }));
+    ok("Claude's example and word family are in their own fields; the contexts are still only the learner's sentence", mit.exampleEn === "Cities must mitigate the effects of heat." && mit.wordFamily.includes("mitigation (n)") && mit.contexts.length === 1 && mit.contexts[0].sentence === "Governments must mitigate the effects of climate change.");
+    const rec = live.find((v) => v.lemma === "receive");
+    ok("misspelt card now carries the correct word, verb, enriched", !!rec && rec.word === "receive" && rec.pos === "verb" && rec.meaningVi === "nhận được" && rec.enriched === true);
+    const old = live.find((v) => v.id === "old-scarce");
+    ok("old card 'scarce' kept its Leitner box 4, 2 lapses and review date", old.box === 4 && old.lapses === 2 && old.nextReview === "2030-01-01", `${old.box}/${old.lapses}/${old.nextReview}`);
+    ok("old card took the new context, keeps its own meaning, gained collocations from Claude", old.contexts.some((c) => c.sentence === "Water is scarcer in the region.") && old.contexts.some((c) => c.sentence === "Jobs are scarce here.") && old.meaningVi === "khan hiếm" && old.collocations.includes("become scarce") && old.collocations.includes("scarce resources"));
+    ok("the folded card 'scarcer' is deleted (soft), only one scarce card is live", raw.find((v) => v.word === "scarcer")?.deleted === true && live.filter((v) => v.lemma === "scarce").length === 1);
+    const occ = await dbLive("occurrences");
+    ok("the occurrence of 'scarcer' now points at the old card", occ.filter((o) => o.itemType === "vocab" && o.itemId === "old-scarce").length >= 1 && !occ.some((o) => o.itemId === idOf("scarcer")));
+
+    // ---- The bank and the warm-up can use the new data ----
+    await go(BASE + "#/vocab", W, H);
+    ok("Vocabulary Bank shows 'Hoàn thiện với Claude (0)', disabled", await waitFor(`document.querySelector('[data-role=enrich-open]')?.textContent === 'Hoàn thiện với Claude (0)' && document.querySelector('[data-role=enrich-open]').disabled`, 6000));
+    await ev(`[...document.querySelectorAll('.link-btn')].find((b) => b.textContent === 'mitigate').click()`);
+    ok("word panel shows Claude's example and word family, labelled as Claude's", await waitFor(`document.querySelector('[data-role=claude-extra]')`, 4000) && (await text("[data-role=claude-extra]")).includes("Ví dụ của Claude: Cities must mitigate") && (await text("[data-role=claude-extra]")).includes("mitigation (n)"));
+    await ev(`document.querySelectorAll('dialog[open], .sheet[open]').forEach((d) => d.close())`);
+    const kinds = await ev(`(async () => {
+      const m = await import('/js/services/leitner.js');
+      const all = await new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('vocab').objectStore('vocab').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; });
+      const card = (l) => all.find(v => v.lemma === l);
+      const at = (l, box) => m.chooseKind({ ...card(l), box }, all);
+      return { mitigateBox4: at('mitigate', 4), receiveBox3: at('receive', 3), mitigateBox5: at('mitigate', 5), mitigateNoMeaningBox4: m.chooseKind({ ...card('mitigate'), box: 4, meaningVi: '' }, all) };
+    })()`);
+    ok("warm-up kinds with the new data: box 3 -> choose meaning, box 4 -> cloze, box 5 -> type collocation", kinds.receiveBox3 === "choice" && kinds.mitigateBox4 === "fill" && kinds.mitigateBox5 === "type", JSON.stringify(kinds));
+    ok("(for contrast) the same card without its meaning could only be a flashcard", kinds.mitigateNoMeaningBox4 === "flashcard");
+    // make the two cards due and look at the real warm-up screen
+    await ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction('vocab', 'readwrite'); const s = tx.objectStore('vocab'); const g = s.getAll(); g.onsuccess = () => { for (const v of g.result) { if (v.lemma === 'mitigate') { v.box = 4; v.nextReview = '2020-01-01'; s.put(v); } if (v.lemma === 'receive') { v.box = 3; v.nextReview = '2020-01-01'; s.put(v); } } }; tx.oncomplete = () => res(true); }; })`);
+    await go(BASE + "#/warmup", W, H);
+    await reload();
+    ok("warm-up opens on a cloze or choose-meaning question (not a plain flashcard)", await waitFor(`document.querySelector('.wu-tag')`, 8000) && /chọn nghĩa|điền từ/i.test(await text(".wu-tag")), await text(".wu-tag"));
+
+    // ---- Grammar Notebook ----
+    await go(BASE + "#/errors", W, H);
+    ok("Grammar Notebook button 'Hoàn thiện với Claude (1)'", await waitFor(`document.querySelector('[data-role=enrich-open]')?.textContent === 'Hoàn thiện với Claude (1)'`, 6000));
+    await realClick("[data-role=enrich-open]");
+    await modalOpen();
+    await realClick("[data-role=enrich-copy]");
+    const clip2 = await ev(`window.__clip ?? ''`);
+    ok("error prompt: has the existing signature, the 10 groups, the wrong sentence", clip2.includes("error_enrich") && clip2.includes('"articles:zero-article-uncountable"') && clip2.includes("plurals-countability") && clip2.includes("The technology has changed a lot."), `${clip2.length} chars`);
+    const newErr = (await dbLive("errors")).find((e) => !e.enriched);
+    const errAnswer = JSON.stringify({ schemaVersion: 1, task: "error_enrich", items: [{ id: newErr.id, type: "articles", signature: "articles:zero-article-uncountable", corrected: "Technology has changed a lot.", explanationVi: "Technology là danh từ không đếm được nên không dùng the.", correctExample: "Information is power." }] });
+    await setPaste(errAnswer);
+    await realClick("[data-role=enrich-paste]");
+    await realClick("[data-role=enrich-read]");
+    ok("error review: plan says the signature already exists and the occurrences add up", await waitFor(`document.querySelector('.enrich-row')`, 3000) && (await text("[data-role=enrich-plan]")).includes("Signature này đã có"), await text("[data-role=enrich-plan]"));
+    await realClick("[data-role=enrich-save]");
+    ok("error saved and folded", await modalGone() && (await toastText()).includes("Đã lưu 1 lỗi") && (await toastText()).includes("1 được gộp"), await toastText());
+    const errs = await dbRaw("errors");
+    const oldErr = errs.find((e) => e.id === "old-err");
+    ok("old error: occurrences 3 + 1 = 4, same signature, enriched; the new card is deleted", oldErr.occurrences === 4 && oldErr.signature === "articles:zero-article-uncountable" && oldErr.enriched === true && errs.find((e) => e.id === newErr.id)?.deleted === true, `${oldErr.occurrences}`);
+    ok("Grammar Notebook button now '(0)' and disabled; the Dashboard card is gone", await waitFor(`document.querySelector('[data-role=enrich-open]')?.textContent === 'Hoàn thiện với Claude (0)' && document.querySelector('[data-role=enrich-open]').disabled`, 6000));
+    await go(BASE + "#/", W, H);
+    await sleep(900);
+    ok("Dashboard has no enrich card when nothing waits", (await count("[data-role=enrich-card]")) === 0);
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "layout") {
     for (const [w, h, n] of [[1280, 800, "d"], [900, 800, "t"], [390, 800, "m"]]) {
       await go(BASE + "#/", w, h);
       await sleep(500);

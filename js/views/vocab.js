@@ -5,6 +5,7 @@ import { confirmModal } from "../components/modal.js";
 import { showToast } from "../components/toast.js";
 import { downloadText } from "../components/download.js";
 import { speakButton } from "../components/speech.js";
+import { openEnrich } from "../components/enrich-modal.js";
 import { openQuickCapture } from "../components/quick-capture.js";
 import { foldForSearch } from "../services/dedupe.js";
 import { isDue, isoDate, addDays } from "../services/leitner.js";
@@ -201,6 +202,8 @@ function renderStats(shown) {
   if (filteredOn) parts.push(h("span", { class: "muted nowrap" }, ` · Đang hiện ${shown}`));
   state.refs.stats.replaceChildren(...parts); // never pass null here: replaceChildren turns it into the text "null"
   state.refs.review.firstChild.textContent = `Ôn ngay (${due} đến hạn)`;
+  state.refs.enrich.textContent = `Hoàn thiện với Claude (${pending})`;
+  state.refs.enrich.disabled = pending === 0;
 }
 
 // ---- Bulk actions ----
@@ -215,8 +218,8 @@ function renderBulk() {
   if (n === 0) return;
   host.replaceChildren(
     h("span", { class: "bulk-count nowrap" }, `${n} đã chọn`),
-    h("button", { type: "button", class: "btn btn-outline btn-sm", disabled: true, title: "Có ở Bước 8" },
-      `Hoàn thiện ${n} từ với Claude`, h("span", { class: "btn-note" }, "Có ở Bước 8")),
+    h("button", { type: "button", class: "btn btn-outline btn-sm", dataset: { role: "enrich-selected" }, onClick: () => openEnrich("vocab", { selectedIds: [...state.selected].slice(0, 20) }) },
+      `Hoàn thiện ${Math.min(n, 20)} từ với Claude`),
     h("button", { type: "button", class: "btn btn-outline btn-sm", onClick: onLearned }, "Đánh dấu đã thuộc"),
     h("button", { type: "button", class: "btn btn-outline btn-sm", onClick: exportCsv }, `Xuất CSV (${n})`),
     h("button", { type: "button", class: "btn btn-danger btn-sm", onClick: onDelete }, "Xoá"),
@@ -394,6 +397,7 @@ export const vocabView = {
     state.refs.stats = h("p", { class: "vocab-stats" }, "Đang tải…");
     state.refs.list = h("div", { class: "vocab-list" });
     state.refs.bulk = h("div", { class: "bulk-bar", hidden: true });
+    state.refs.enrich = h("button", { type: "button", class: "btn btn-outline", dataset: { role: "enrich-open" }, onClick: () => openEnrich("vocab") }, "Hoàn thiện với Claude");
     state.refs.review = h("a", { class: "btn btn-outline", href: "#/warmup" }, "Ôn ngay (0 đến hạn)");
 
     container.replaceChildren(h("div", { class: "vocab" },
@@ -402,8 +406,7 @@ export const vocabView = {
         h("div", { class: "vocab-actions" },
           h("button", { type: "button", class: "btn btn-primary", onClick: () => openQuickCapture({ tab: "word" }) }, "+ Thêm từ"),
           state.refs.review,
-          h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 8" },
-            "Hoàn thiện với Claude", h("span", { class: "btn-note" }, "Có ở Bước 8")),
+          state.refs.enrich,
           h("button", { type: "button", class: "btn btn-outline", onClick: exportCsv }, "Xuất CSV"))),
       buildFilters(),
       state.refs.bulk,

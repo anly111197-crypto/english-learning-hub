@@ -4,6 +4,7 @@ import { openModal } from "./modal.js";
 import { showToast } from "./toast.js";
 import { h, autoGrow } from "./dom.js";
 import { saveWord, saveError, countPending } from "../services/capture.js";
+import { openEnrich } from "./enrich-modal.js";
 import { ERROR_TYPES, SKILL_LABELS, PART_OPTIONS, POS_OPTIONS } from "../services/taxonomy.js";
 import { BOOKS, TESTS } from "../services/progress.js";
 import { loadPracticeData } from "../services/practice-store.js";
@@ -199,7 +200,8 @@ function buildForm(initialSource, initialTab, onClose) {
       writeLast(src);
       modal.close();
       document.dispatchEvent(new CustomEvent("elh:data-changed"));
-      showToast(message);
+      // The button opens "Hoàn thiện với Claude" for the kind of item that was just saved (spec 5.4).
+      showToast(message, "ok", { label: "Hoàn thiện với Claude", onClick: () => openEnrich(tab === "word" ? "vocab" : "error") });
     } catch (err) {
       fail(err.message || "Không lưu được.");
     } finally {

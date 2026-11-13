@@ -171,7 +171,7 @@ Mở từ panel test (mục 5.2) bằng ba nút **Luyện Listening / Reading / 
 - **Phiếu L/R:** 40 ô nhóm theo Part (Listening 1–10, 11–20, 21–30, 31–40) hoặc Passage (Reading 1–13, 14–26, 27–40); Enter / Tab sang ô kế. Nháp (đáp án, thời gian đã dùng, giới hạn) tự lưu mỗi 5 giây và khi rời trang, lưu ở localStorage theo khoá `book-test-skill`; tải lại không mất; xoá sau khi lưu attempt thành công.
 - **Ghi nhanh trên thanh đầu** (cạnh đồng hồ, có cả lúc làm bài lẫn lúc chấm; vùng bấm ≥ 44px, nowrap): dành cho iPad và điện thoại không có phím N. Nguồn tự điền {book, test, skill} của bài đang làm và part suy ra từ ô đáp án (hoặc dòng chấm) được focus sau cùng; chưa focus ô nào thì part để trống (không lấy từ lần lưu trước). Mở Ghi nhanh không dừng đồng hồ, không đụng tới đáp án; đóng sheet thì focus quay lại ô cũ. Khởi động 15' không có nút này.
 - **Nộp bài → chế độ chấm:** mỗi ô có Đúng / Sai (phím 1 / 2 khi đang chọn một dòng; bấm xong nhảy sang dòng kế). Người học tự dò đáp án trong đề của họ; app không có đáp án. Cạnh nút **Lưu điểm** luôn hiện "Đúng x/40 · Còn n ô chưa chấm" (ô chưa chấm tính là sai). Lưu điểm = quy đổi band bằng `bands.js`, ghi attempt (rawScore, band, durationMin, date) cùng quy tắc với modal Nhập kết quả (mục 5.2: một attempt cho mỗi test và kỹ năng, đã có điểm thì hỏi xác nhận ghi đè), rồi mở lại panel test. Câu sai có nút **Ghi lỗi/từ** mở Ghi nhanh với nguồn {book, test, skill, part} của đúng câu đó.
-- **Writing:** chọn Task 1 / Task 2; ô đề bài (người học tự gõ hoặc dán, chỉ lưu trên máy); ô viết có đếm từ, cảnh báo dưới 150 (Task 1) / 250 (Task 2). Tự lưu nháp vào `submissions` (`status: draft`, `source: {book, test, task}`), kèm một bản sao văn bản cạnh đồng hồ ở localStorage để tải lại không mất. **Xong** lưu bài (`doneAt`, status vẫn `draft` cho tới khi Claude chấm ở Bước 8) rồi mở modal Nhập kết quả để nhập band tay; attempt Writing gắn `submissionId`.
+- **Writing:** chọn Task 1 / Task 2; ô đề bài (người học tự gõ hoặc dán, chỉ lưu trên máy); ô viết có đếm từ, cảnh báo dưới 150 (Task 1) / 250 (Task 2). Tự lưu nháp vào `submissions` (`status: draft`, `source: {book, test, task}`), kèm một bản sao văn bản cạnh đồng hồ ở localStorage để tải lại không mất. **Xong** lưu bài (`doneAt`, status vẫn `draft` cho tới khi Claude chấm ở Bước 8b) rồi mở modal Nhập kết quả để nhập band tay; attempt Writing gắn `submissionId`.
 - **Bản quyền:** không có nội dung đề, đáp án, PDF hay audio trong dữ liệu hay repo. Dữ liệu duy nhất là đáp án người học gõ.
 
 ## 6. Quy tắc nghiệp vụ
@@ -220,6 +220,14 @@ Trạng thái ≠ Đã khắc phục, sắp xếp `occurrences` giảm dần r�
 
 ### 6.6 Ghi nhanh và "Hoàn thiện với Claude"
 Mục ghi nhanh có `enriched: false`. Nút hoàn thiện gom tối đa 20 mục vào một tác vụ `vocab_enrich` / `error_enrich`, kết quả hiện để duyệt, người học tick rồi lưu. Sau khi có signature, chạy lại chống trùng.
+
+**Bước 8a (chế độ copy/paste):** nút "Hoàn thiện với Claude (N)" ở Vocabulary Bank (cả trong thanh chọn nhiều ô), Grammar Notebook, thẻ trên Dashboard (chỉ khi có mục chờ) và trong toast sau khi ghi nhanh. Mỗi lần tối đa 20 mục, cũ nhất trước; từ và lỗi là hai tác vụ riêng. Luồng: Sao chép prompt (gọi clipboard ngay trong click; không chép được thì hiện ô văn bản đã chọn sẵn) → Mở Claude (`claude.ai/new`) → dán JSON (có nút Dán) → bảng duyệt từng mục (sửa được, có checkbox) → "Lưu đã chọn (N)".
+- Chỉ gửi cho Claude những gì người học gõ: từ, câu ngữ cảnh họ ghi (câu mới nhất), câu sai, danh sách signature hiện có. Không gửi Cam/Test hay tiến độ Leitner.
+- JSON sai (không đọc được, sai `task`, id không khớp hoặc lặp, thiếu trường, `type` ngoài 10 nhóm, signature không bắt đầu bằng `type:`) thì báo bằng tiếng Việt và **không lưu gì**. Mục Claude bỏ sót vẫn chờ hoàn thiện.
+- `noteVi` (tuỳ chọn): Claude ghi chú khi từ có vẻ gõ sai chính tả và đề xuất từ đúng ở `lemma`; bảng duyệt hiện ghi chú nổi bật, lemma sửa được, và thẻ lấy từ đúng làm `word`.
+- `example` và `wordFamily` của Claude lưu ở trường riêng của thẻ từ (`exampleEn`, `wordFamily[]`), chỉ để đọc; không bao giờ vào `contexts[]` nên không xuất hiện trong bài cloze của khởi động (câu ví dụ phải là câu người học đã ghi).
+- Collocations và họ từ của Claude được thêm vào những gì thẻ đang có, không thay thế.
+- Chống trùng sau khi hoàn thiện: nếu `lemma + pos` mới trùng một thẻ khác, thẻ vừa hoàn thiện gộp vào thẻ có sẵn (gộp `contexts`, `collocations`; chuyển `occurrences` và liên kết notebook), thẻ có sẵn giữ nguyên box, `nextReview` và `lapses`. Nếu `signature` trùng một lỗi có sẵn thì gộp vào lỗi đó và cộng `occurrences`. Khoá trùng một thẻ đã xoá thì dùng lại danh tính của thẻ đã xoá.
 
 ### 6.7 Mười nhóm lỗi
 Tenses · Articles · Prepositions · Subject-Verb Agreement · Passive Voice · Word Forms · Sentence Structure · Collocations · Plurals & Countability · Punctuation & Spelling.
@@ -300,6 +308,17 @@ Ví dụ `writing_task2`:
   ]
 }
 ```
+Tác vụ enrich (Bước 8a), cùng khung `{ "schemaVersion": 1, "task": ..., "items": [...] }`, mỗi mục giữ nguyên `id` đã gửi:
+```json
+// vocab_enrich
+{ "id": "...", "lemma": "mitigate", "pos": "verb", "ipa": "/ˈmɪtɪɡeɪt/", "meaningVi": "giảm nhẹ",
+  "collocations": ["mitigate the impact"], "example": "...", "wordFamily": ["mitigation (n)"], "noteVi": "(tuỳ chọn) ..." }
+// error_enrich
+{ "id": "...", "type": "articles", "signature": "articles:zero-article-uncountable", "corrected": "...",
+  "explanationVi": "...", "correctExample": "..." }
+```
+`pos` thuộc noun, verb, adjective, adverb, phrase, other. `type` thuộc 10 nhóm (mục 6.7, dạng slug); `signature` bắt đầu bằng `type:`. Kiểm tra ở `js/ai/schema.js`, prompt ở `js/ai/prompts.js`, cửa duy nhất cho view là `js/ai/index.js`.
+
 Quy tắc cho prompt:
 - `corrected` và `minimalCorrectedText` là **sửa tối thiểu**: chỉ sửa lỗi, giữ nguyên ý và từ của người học. Nâng cấp diễn đạt chỉ đặt trong `band7Text`.
 - `signature` chọn từ danh sách signature đã có (website gửi kèm), chỉ tạo mới khi không khớp.
@@ -344,7 +363,8 @@ Quy tắc chung: số, nút, tag dùng `white-space: nowrap`; tiêu đề thẻ 
 | 6 | Dashboard | Số liệu khớp với dữ liệu thật |
 | 6b | Luyện đề trong app (mục 5.9) | Laptop: chọn PDF + 4 audio, làm Listening, nộp, chấm → ô L trên ma trận đúng band; tải lại giữa chừng không mất đáp án; 390px dùng được bằng tab Đề/Phiếu |
 | 7 | Đồng bộ Google Drive | Sửa trên iPhone, mở Windows thấy trong ≤ 1 phút |
-| 8 | AI copy/paste (2a): Writing, Speaking, enrich, bài tập | Dán JSON hợp lệ → khay lưu → sổ cập nhật |
+| 8a | AI copy/paste (2a): "Hoàn thiện với Claude" cho từ và lỗi ghi nhanh (mục 6.6, tác vụ `vocab_enrich`, `error_enrich`) | Ghi 3 từ chỉ có chữ + 1 lỗi → sao chép prompt → dán JSON mẫu → duyệt, sửa, tick → lưu: thẻ có IPA, nghĩa, collocation, lỗi có nhóm + signature; trùng thì gộp, giữ box Leitner của thẻ cũ; JSON sai thì báo và không lưu gì |
+| 8b | AI copy/paste (2a): Writing & Speaking (mục 5.6), tạo bài tập từ lỗi | Dán JSON hợp lệ → khay lưu → sổ cập nhật |
 | 9 | AI qua proxy (2b) | Không có key trong mã nguồn; chấm Task 2 < 60s |
 
 Mỗi bước: chạy thử trên Chrome desktop + Safari iOS, rồi mới sang bước sau.

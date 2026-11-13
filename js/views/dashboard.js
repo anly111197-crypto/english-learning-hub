@@ -3,6 +3,8 @@
 import { h } from "../components/dom.js";
 import { mountBackupControls } from "../components/backup-ui.js";
 import { mountSyncStatus } from "../components/sync-ui.js";
+import { openEnrich } from "../components/enrich-modal.js";
+import { countPendingByKind } from "../services/enrich-ops.js";
 import { loadDashboardData } from "../services/practice-store.js";
 import { computeDashboard } from "../services/dashboard-stats.js";
 import { formatBand } from "../services/bands.js";
@@ -71,6 +73,15 @@ function statCards(d) {
   return h("section", { class: "stat-grid", "aria-label": "Tóm tắt" }, progress, band, vocab, errors);
 }
 
+// ---- "Hoàn thiện với Claude": only when something waits for it (spec 6.6) ----
+function enrichCard(pending) {
+  if (pending.vocab + pending.errors === 0) return null;
+  const btn = (kind, label, n) => (n ? h("button", { type: "button", class: "btn btn-outline", dataset: { role: `enrich-${kind}` }, onClick: () => openEnrich(kind) }, `${label} (${n})`) : null);
+  return h("section", { class: "enrich-card", "aria-label": "Hoàn thiện với Claude", dataset: { role: "enrich-card" } },
+    h("p", { class: "enrich-card-text" }, `${pending.vocab + pending.errors} mục đang chờ Claude hoàn thiện (nghĩa, IPA, collocation, nhóm lỗi).`),
+    h("div", { class: "enrich-card-actions" }, btn("vocab", "Từ vựng", pending.vocab), btn("error", "Lỗi sai", pending.errors)));
+}
+
 // ---- Recent activity, or the three first steps when there is nothing yet ----
 function activitySection(d) {
   const section = h("section", { class: "activity" });
@@ -115,7 +126,10 @@ export function dashboardView(container) {
   const load = () => loadDashboardData().then((data) => {
     if (!container.contains(body)) return; // the user already moved to another page
     const d = computeDashboard({ ...data, today: isoDate() });
-    body.replaceChildren(hero(d), statCards(d), activitySection(d));
+    countPendingByKind().catch(() => ({ vocab: 0, errors: 0 })).then((pending) => {
+      if (!container.contains(body)) return;
+      body.replaceChildren(...[hero(d), statCards(d), enrichCard(pending), activitySection(d)].filter(Boolean));
+    });
   }).catch((err) => {
     if (container.contains(body)) body.replaceChildren(h("p", { class: "form-error" }, `Không đọc được dữ liệu: ${err.message}`));
   });

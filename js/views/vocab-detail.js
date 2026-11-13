@@ -80,6 +80,10 @@ export function buildVocabDetail({ word, occurrences, topics, notes = [], notebo
     field("Định nghĩa tiếng Anh", inputs.definitionEn, "vd-def"),
     field("Collocations", inputs.collocations, "vd-coll"),
     field("Từ đồng nghĩa", inputs.synonyms, "vd-syn"),
+    // Written by Claude (step 8a), shown for reading only. Never used as a context sentence in the warm-up.
+    word.exampleEn || (word.wordFamily ?? []).length ? h("div", { class: "claude-extra", dataset: { role: "claude-extra" } },
+      word.exampleEn ? h("p", {}, h("strong", {}, "Ví dụ của Claude: "), word.exampleEn) : null,
+      (word.wordFamily ?? []).length ? h("p", {}, h("strong", {}, "Họ từ: "), word.wordFamily.join(", ")) : null) : null,
     message, conflictBox,
     h("div", { class: "detail-actions" },
       h("button", { type: "submit", class: "btn btn-primary" }, "Lưu thay đổi"),

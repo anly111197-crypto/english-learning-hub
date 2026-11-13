@@ -1,0 +1,44 @@
+/* "Hoàn thiện với Claude" dialog and entry buttons (Step 8a). Tokens only. */
+.modal.modal-wide { width: min(760px, calc(100vw - 24px)); }
+.enrich { display: grid; gap: var(--space-sm); padding-top: var(--space-xs); }
+.enrich p, .enrich ol { margin: 0; }
+.enrich-steps { padding-left: var(--space-lg); display: grid; gap: var(--space-xs); }
+.enrich-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.enrich-actions .btn { white-space: nowrap; }
+.enrich-paste-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-xs); }
+.enrich-paste-head .btn { min-width: var(--tap-min); min-height: var(--tap-min); }
+.enrich-input, .enrich-fallback, .enrich-textarea { padding: 10px 12px; resize: vertical; overflow: auto; font-family: inherit; line-height: 1.4; }
+.enrich-fallback { font-size: var(--fs-body-sm); }
+.enrich-error { margin: 0; }
+
+.enrich-rows { display: grid; gap: var(--space-md); }
+.enrich-row { display: grid; gap: var(--space-xs); padding: var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.enrich-row[data-checked="false"] { opacity: 0.55; }
+.enrich-row-head { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--tap-min); font-weight: 700; color: var(--navy-900); cursor: pointer; }
+.enrich-row-head input { width: 22px; height: 22px; flex: none; accent-color: var(--teal-500); }
+.enrich-row-title { min-width: 0; overflow-wrap: anywhere; }
+.enrich-row .field { margin-top: var(--space-xs); }
+.enrich-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--space-md); }
+.enrich-have { margin: 0; }
+.enrich-note { padding: var(--space-sm) var(--space-md); border-left: 4px solid var(--err-vocab); border-radius: var(--radius-sm); background: var(--band-empty); color: var(--navy-900); font-weight: 600; }
+.enrich-note-fix { font-weight: 400; }
+.enrich-plan { padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-sm); background: var(--band-empty); color: var(--text-muted); font-size: var(--fs-body-sm); }
+.enrich-plan[data-plan="merge"] { border-left: 4px solid var(--teal-500); color: var(--navy-900); font-weight: 600; }
+.enrich-row-error { margin: 0; }
+
+/* Entry buttons: Dashboard card and the toast action */
+.enrich-card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); margin-top: var(--space-lg); padding: var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.enrich-card-text { flex: 1 1 220px; min-width: 0; margin: 0; }
+.enrich-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.enrich-card .btn { white-space: nowrap; }
+.toast-action { margin-left: var(--space-md); min-height: var(--tap-min); padding: 0 12px; border: 1px solid var(--on-navy-muted); border-radius: var(--radius); background: transparent; color: var(--on-navy); font: inherit; font-weight: 700; white-space: nowrap; cursor: pointer; }
+
+@media (max-width: 767px) {
+  .enrich-grid { grid-template-columns: 1fr; }
+  .enrich-row { padding: var(--space-sm); }
+  .modal.modal-wide .modal-body { padding-left: var(--space-md); padding-right: var(--space-md); }
+}
+
+.errors-actions { margin: 0 0 var(--space-md); }
+.claude-extra { display: grid; gap: var(--space-xs); margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); border-radius: var(--radius); background: var(--band-empty); font-size: var(--fs-body-sm); }
+.claude-extra p { margin: 0; }

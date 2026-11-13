@@ -5,6 +5,7 @@ import { openSheet } from "../components/sheet.js";
 import { openModal, confirmModal } from "../components/modal.js";
 import { showToast } from "../components/toast.js";
 import { notesBlock } from "../components/notes-block.js";
+import { openEnrich } from "../components/enrich-modal.js";
 import { loadErrorData, updateError, setStatus, mergeErrors, deleteErrors } from "../services/error-ops.js";
 import { STATUS_LABELS, STATUSES, summarizeErrors, filterErrors, sortErrors, normalizeType } from "../services/errors.js";
 import { ERROR_TYPES, errorTypeLabel, sourceLabel, SKILL_LABELS, partLabel } from "../services/taxonomy.js";
@@ -47,6 +48,9 @@ function derive() {
 function renderCards() {
   const s = summarizeErrors(live(), state.data.occurrences, isoDate());
   state.summary = s;
+  const pending = live().filter((e) => !e.enriched).length;
+  state.refs.enrich.textContent = `Hoàn thiện với Claude (${pending})`;
+  state.refs.enrich.disabled = pending === 0;
   const card = (label, value, sub) => h("section", { class: "summary-card" },
     h("p", { class: "summary-label", title: label }, label),
     h("p", { class: "summary-value nowrap" }, value),
@@ -206,7 +210,8 @@ function renderBulk() {
       showToast(`Đã đánh dấu ${done} lỗi là đã khắc phục.`);
       await reload();
     } }, "Đánh dấu đã khắc phục"),
-    h("button", { type: "button", class: "btn btn-outline btn-sm", disabled: true, title: "Có ở Bước 8" }, `Tạo bài tập từ ${n} lỗi`, h("span", { class: "btn-note" }, "Có ở Bước 8")),
+    h("button", { type: "button", class: "btn btn-outline btn-sm", dataset: { role: "enrich-selected" }, onClick: () => openEnrich("error", { selectedIds: ids.slice(0, 20) }) }, `Hoàn thiện ${Math.min(n, 20)} lỗi với Claude`),
+    h("button", { type: "button", class: "btn btn-outline btn-sm", disabled: true, title: "Có ở Bước 8b" }, `Tạo bài tập từ ${n} lỗi`, h("span", { class: "btn-note" }, "Có ở Bước 8b")),
     h("button", { type: "button", class: "btn btn-danger btn-sm", onClick: async () => {
       const ok = await confirmModal({ title: "Xoá lỗi", danger: true, confirmLabel: `Xoá ${n} lỗi`, message: `Xoá ${n} lỗi đã chọn? Việc này không thể hoàn tác từ trong ứng dụng (hãy sao lưu trước nếu cần).` });
       if (!ok) return;
@@ -330,6 +335,7 @@ export const errorsView = {
     state.filters = { type, status, q: "", sort: "occurrences" };
     const token = ++state.token;
 
+    state.refs.enrich = h("button", { type: "button", class: "btn btn-outline", dataset: { role: "enrich-open" }, onClick: () => openEnrich("error") }, "Hoàn thiện với Claude");
     state.refs.cards = h("div", { class: "summary-grid" });
     state.refs.filters = h("div", { class: "error-filters" });
     state.refs.count = h("p", { class: "muted list-count" }, "Đang tải…");
@@ -339,11 +345,12 @@ export const errorsView = {
       h("h2", { class: "exercise-title" }, "Bài tập từ lỗi đã chọn"),
       h("p", { class: "muted" }, "Chọn các lỗi trong danh sách để tạo bài tập điền, sửa và viết lại, rồi chấm."),
       h("p", { class: "exercise-selected" }, "Chưa chọn lỗi nào."),
-      h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 8" }, "Tạo bài tập", h("span", { class: "btn-note" }, "Có ở Bước 8")));
+      h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 8b" }, "Tạo bài tập", h("span", { class: "btn-note" }, "Có ở Bước 8b")));
 
     container.replaceChildren(h("div", { class: "errors" },
       h("h1", { class: "page-title" }, "Grammar Notebook"),
       h("p", { class: "page-sub" }, "Các lỗi bạn đã ghi, gom theo nhóm và theo số lần lặp lại."),
+      h("div", { class: "errors-actions" }, state.refs.enrich),
       state.refs.cards, state.refs.filters,
       h("div", { class: "errors-layout" },
         h("div", { class: "errors-main" }, state.refs.count, state.refs.bulk, state.refs.list),
