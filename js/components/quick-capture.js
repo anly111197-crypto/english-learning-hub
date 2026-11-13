@@ -88,7 +88,9 @@ function sourceBlock(initial) {
   return { node, read };
 }
 
-export async function openQuickCapture({ source, tab } = {}) {
+// source: preset { book, test, skill, part }. exact: use it as given (an empty part stays empty instead of being filled
+// from the previous save). onClose: called after the sheet has closed (the practice screen gives focus back to its box).
+export async function openQuickCapture({ source, tab, exact = false, onClose } = {}) {
   if (active) return;
   active = true;
   try {
@@ -96,15 +98,15 @@ export async function openQuickCapture({ source, tab } = {}) {
     const last = readLast()?.source ?? null;
     // Keep skill and part from the previous save only when it was the same test.
     const same = base && last && last.book === base.book && last.test === base.test;
-    const initial = base ? { ...base, skill: base.skill ?? (same ? last.skill : null), part: base.part ?? (same ? last.part : null) } : null;
-    buildForm(initial, tab ?? memory.tab);
+    const initial = exact ? base ?? null : base ? { ...base, skill: base.skill ?? (same ? last.skill : null), part: base.part ?? (same ? last.part : null) } : null;
+    buildForm(initial, tab ?? memory.tab, onClose);
   } catch (err) {
     active = false;
     showToast(err.message || "Không mở được Ghi nhanh.", "error");
   }
 }
 
-function buildForm(initialSource, initialTab) {
+function buildForm(initialSource, initialTab, onClose) {
   const values = { word: "", context: "", wrong: "", right: "", type: "" };
   let tab = initialTab;
   let busy = false;
@@ -239,7 +241,7 @@ function buildForm(initialSource, initialTab) {
     h("button", { type: "button", class: "btn btn-text", onClick: () => modal.close() }, "Hủy"),
     h("button", { type: "button", class: "btn btn-primary", onClick: () => submit() }, "Lưu (Enter)"));
 
-  const modal = openModal({ title: "Ghi nhanh", content: formNode, footer: footerNode, onClose: () => { active = false; } });
+  const modal = openModal({ title: "Ghi nhanh", content: formNode, footer: footerNode, onClose: () => { active = false; onClose?.(); } });
   render(false);
   fields.querySelector("input, textarea")?.focus();
 }

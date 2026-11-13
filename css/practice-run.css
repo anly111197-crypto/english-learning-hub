@@ -103,7 +103,8 @@ body[data-route="practice-run"] .view { max-width: none; padding: 0; }
   .run-exit { order: 0; padding: 0 8px; }
   .run-title { flex: 1 1 calc(100% - 110px); order: 1; font-size: var(--fs-body-lg); }
   .run-clock { order: 2; flex: 1; gap: var(--space-xs); }
-  .run-submit { order: 3; margin-left: 0; }
+  .run-capture { order: 3; padding: 0 12px; } /* phone: second row holds Ghi nhanh and Nộp bài together */
+  .run-submit { order: 4; margin-left: auto; }
   .run-clock .btn { padding: 0 10px; }
   .run-time { font-size: var(--fs-headline-sm); }
   .run-limit-text, .run-limit > span:last-child { display: none; }

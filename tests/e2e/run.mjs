@@ -1523,6 +1523,82 @@ try {
       await sleep(700);
       ok("a new piece starts blank after 'Xong'", (await evalJs(`document.querySelector('#w-text').value`)) === "");
     }
+    if (scenario === "run-capture" || scenario === "run-capture-m") {
+      // Quick-capture button in the header of the practice screen (step 6b follow-up): phone and laptop.
+      const mobile = scenario === "run-capture-m";
+      const [W, H] = mobile ? [390, 844] : [1280, 800];
+      const realClick = async (sel) => {
+        const r = await evalJs(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+        for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+        await sleep(400);
+      };
+      const secs = (txt) => { const [m, s] = txt.split(":").map(Number); return m * 60 + s; };
+      const srcVals = () => evalJs(`({ book: document.querySelector('#qc-book')?.value, test: document.querySelector('#qc-test')?.value, skill: document.querySelector('#qc-skill')?.value, part: document.querySelector('#qc-part')?.value })`);
+      const dialogOpen = () => waitFor(`document.querySelector('dialog.modal[open] #qc-book')`, 4000);
+      const cancelDialog = async () => { await evalJs(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Hủy').click()`); await waitFor(`!document.querySelector('dialog[open]')`, 3000); };
+      const sheetTab = async () => { if (mobile) await click(".run-tabs [data-tab=sheet]"); };
+
+      await seed(W, H);
+      await go(BASE + "#/practice/15/1/L", W, H);
+      await runReady(".run .ans");
+      ok("header has the 'Ghi nhanh' button: >=44px, nowrap, inside the viewport", await evalJs(`(() => { const b = document.querySelector('[data-role=capture]'); const r = b.getBoundingClientRect(); return b.textContent === 'Ghi nhanh' && r.width >= 44 && r.height >= 44 && getComputedStyle(b).whiteSpace === 'nowrap' && r.left >= 0 && r.right <= innerWidth; })()`));
+      ok("no horizontal overflow", await evalJs(`document.documentElement.scrollWidth <= innerWidth`));
+      await shot(mobile ? "capture-m-header.png" : "capture-d-header.png");
+
+      // No box focused yet: skill is filled, the part stays empty.
+      await realClick("[data-role=capture]");
+      ok("no box focused: source = Cam 15 / Test 1 / Listening, part empty", (await dialogOpen()) && JSON.stringify(await srcVals()) === JSON.stringify({ book: "15", test: "1", skill: "L", part: "" }), JSON.stringify(await srcVals()));
+      await cancelDialog();
+
+      // Working: start the clock, type in two boxes, last focus = question 33 (Part 4).
+      await sheetTab();
+      await click("[data-role=pause]");
+      await focus("#ans-3");
+      await typeText("alpha");
+      await focus("#ans-33");
+      await typeText("beta");
+      const answersBefore = await evalJs(`[...document.querySelectorAll('.ans')].map((e) => e.value).join('|')`);
+      const clockBefore = secs(await clockText());
+      await sleep(1300);
+      await realClick("[data-role=capture]");
+      ok("source follows the last box: Cam 15 / Test 1 / Part 4", (await dialogOpen()) && JSON.stringify(await srcVals()) === JSON.stringify({ book: "15", test: "1", skill: "L", part: "4" }), JSON.stringify(await srcVals()));
+      ok("opening it did not pause the clock (label still 'Còn lại')", (await text(".run-time-label")) === "Còn lại");
+      await typeText("serendipity");
+      await press("Enter");
+      ok("saved: the dialog closed", await waitFor(`!document.querySelector('dialog[open]')`, 4000));
+      await sleep(500);
+      const occ = (await dbAll("occurrences")).filter((o) => o.itemType === "vocab" && o.source?.book === 15 && o.source?.test === 1 && o.source?.skill === "L" && o.source?.part === 4);
+      const word = (await dbAll("vocab")).find((v) => v.lemma === "serendipity");
+      ok("1 word saved with source Cam 15 / Test 1 / L / Part 4", !!word && occ.some((o) => o.itemId === word.id), `${occ.length} matching occurrence(s)`);
+      ok("answers are all still there", (await evalJs(`[...document.querySelectorAll('.ans')].map((e) => e.value).join('|')`)) === answersBefore && answersBefore.includes("alpha") && answersBefore.includes("beta"));
+      ok("clock kept running: now lower than before, still 'Còn lại'", secs(await clockText()) < clockBefore && (await text(".run-time-label")) === "Còn lại", `${clockBefore}s -> ${secs(await clockText())}s`);
+      ok("focus went back to box 33", await evalJs(`document.activeElement?.id === 'ans-33'`));
+
+      // A fresh screen forgets the box: the part is empty even though the last save was Part 4 of the same test.
+      await reload();
+      await runReady(".run .ans");
+      await realClick("[data-role=capture]");
+      ok("fresh screen: part empty again (not inherited from the last save)", (await dialogOpen()) && (await srcVals()).part === "", JSON.stringify(await srcVals()));
+      await cancelDialog();
+
+      // Grading phase
+      await sheetTab();
+      await click("[data-role=action]");
+      if (await waitFor(`document.querySelector('dialog[open] .btn-primary')`, 1500)) await evalJs(`document.querySelector('dialog[open] .btn-primary').click()`);
+      ok("grading phase reached", await waitFor(`document.querySelector('.run[data-phase=grade]')`, 4000));
+      await sheetTab();
+      ok("the button is still in the header while grading", await evalJs(`!!document.querySelector('[data-role=capture]') && document.querySelector('[data-role=capture]').getBoundingClientRect().height >= 44`));
+      await focus('.grade-row[data-n="12"]');
+      await realClick("[data-role=capture]");
+      ok("grading: source Part 2 for question 12", (await dialogOpen()) && (await srcVals()).part === "2", JSON.stringify(await srcVals()));
+      await cancelDialog();
+      ok("grading: focus back on row 12", await evalJs(`document.activeElement?.classList.contains('grade-row') && document.activeElement.dataset.n === '12'`));
+      ok("grading: answers kept (12 -> row text)", (await evalJs(`document.querySelector('.grade-row[data-n="33"] .grade-answer').textContent`)) === "beta");
+      if (mobile) await shot("capture-m-dialog.png");
+      await go(BASE + "#/warmup", W, H);
+      await sleep(500);
+      ok("warm-up has no such button", (await count("[data-role=capture]")) === 0);
+    }
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
   } else if (scenario === "sync" || scenario === "sync-m") {
     // Google Drive sync (step 7) against a FAKE Google sign-in and a FAKE Drive (both injected into the page; the real

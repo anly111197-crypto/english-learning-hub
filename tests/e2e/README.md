@@ -45,6 +45,7 @@ Test đơn vị chạy riêng: `node --test tests/*.test.js`.
 | `run-writing` | Luyện đề Writing: Task 1/2 và đồng hồ 20'/40', đếm từ và cảnh báo, tự lưu vào `submissions`, tải lại không mất chữ, không tạo bản ghi trùng, Xong → modal band, attempt gắn `submissionId`, bài mới bắt đầu trống. |
 | `sync` | Đồng bộ Google Drive (Bước 7) với đăng nhập Google GIẢ và Drive GIẢ chèn vào trang (không gọi Google thật; tệp Drive giả nằm trong localStorage): chưa kết nối thì không popup, Kết nối bằng chuột thật (có user activation), backup tải xuống lần đầu, tạo tệp, token không nằm trong storage/IndexedDB/tệp, kéo, giới hạn 30 giây khi focus, đẩy sau 5 giây, mở lại tự xin token im lặng, bị từ chối thì Cần đăng nhập lại và nút Đăng nhập lại, Offline rồi online, 401, Ngắt kết nối (giữ dữ liệu), kết nối lại không tải backup thứ hai. |
 | `sync-m` | Như `sync` nhưng ở 390px: dùng thẻ ở Dashboard, hộp thoại vừa màn hình, có ảnh `sync-m-dialog.png`. |
+| `run-capture`, `run-capture-m` | Nút "Ghi nhanh" ở thanh đầu màn Luyện đề (1280px và 390px): vùng bấm ≥44px, nowrap, không tràn ngang; chưa focus ô nào thì part trống; đang làm bài mở bằng chuột thật, lưu 1 từ, nguồn đúng Cam/Test/Part theo ô focus sau cùng, đồng hồ vẫn chạy, đáp án còn, focus quay lại ô cũ; tải lại thì part lại trống (không kế thừa lần lưu trước); lúc chấm vẫn có nút và đúng Part; Khởi động 15' không có nút. |
 | `layout` | Chụp ảnh trang chủ ở 1280, 900 và 390px (`layout-d/t/m.png`). |
 | `nodev` | Vào `#/dev` khi không có `?dev=1` thì bị đưa về trang thường. |
 

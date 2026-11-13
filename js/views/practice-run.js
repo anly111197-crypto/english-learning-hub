@@ -174,6 +174,31 @@ function setMark(n, value, moveFocus) {
   else if (moveFocus) fresh.focus();
 }
 
+// The box (answer, grade row or writing text) that had the focus last: the part of a quick-capture note comes from it,
+// and the focus goes back to it when the sheet closes.
+function trackFocus(e) {
+  const el = e.target instanceof Element ? e.target.closest(".ans, .grade-row, .write-text") : null;
+  if (!el) return;
+  s.lastBox = el.classList.contains("write-text") ? { writing: true } : { n: Number(el.dataset.n) };
+}
+
+function restoreBox() {
+  const b = s?.lastBox;
+  if (!b) return;
+  const el = b.writing ? s.root.querySelector(".write-text") : s.refs.sheet.querySelector(`.ans[data-n="${b.n}"], .grade-row[data-n="${b.n}"]`);
+  el?.focus({ preventScroll: true });
+}
+
+// Header button: works while answering and while grading, and neither stops the clock nor touches the answers.
+// No box focused yet -> the part stays empty (exact: the previous save does not fill it in).
+function openCapture() {
+  const n = s.lastBox?.n;
+  openQuickCapture({
+    source: { book: s.book, test: s.test, skill: s.skill, part: n ? partOfQuestion(s.skill, n) : null },
+    exact: true, onClose: restoreBox,
+  });
+}
+
 function captureFor(n) {
   openQuickCapture({ source: { book: s.book, test: s.test, skill: s.skill, part: partOfQuestion(s.skill, n) } });
 }
@@ -430,6 +455,7 @@ function buildFrame(testRec) {
     h("a", { class: "btn btn-text run-exit", href: panelHref(x), onClick: () => flush() }, "← Thoát"),
     title,
     h("div", { class: "run-clock" }, h("div", { class: "run-time-box" }, time, timeLabel), pause, limit),
+    h("button", { type: "button", class: "btn btn-outline run-capture nowrap", dataset: { role: "capture" }, onClick: openCapture }, "Ghi nhanh"),
     h("div", { class: "run-submit" }, info, action, done),
     timeUp);
 
@@ -458,7 +484,7 @@ async function start(container, params) {
   const skill = params.skill;
   const x = {
     container, book, test, skill, task: skill === "W" ? 2 : null, finished: false, busy: false, running: false, locked: false,
-    last: Date.now(), chain: Promise.resolve(), timers: [], listeners: [], source: null, refs: null, root: null,
+    last: Date.now(), chain: Promise.resolve(), timers: [], listeners: [], source: null, refs: null, root: null, lastBox: null,
     key: draftKey(book, test, skill, skill === "W" ? 2 : null), draft: null, sub: null,
   };
   s = x;
@@ -498,6 +524,7 @@ async function start(container, params) {
   x.timers.push(setInterval(tick, 500), setInterval(flush, AUTOSAVE_MS));
   const on = (target, type, fn) => { target.addEventListener(type, fn); x.listeners.push([target, type, fn]); };
   on(document, "keydown", onKeydown);
+  on(x.root, "focusin", trackFocus);
   on(window, "pagehide", flush);
   on(document, "visibilitychange", () => { if (document.hidden) flush(); });
 }
