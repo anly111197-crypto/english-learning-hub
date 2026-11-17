@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v17";
+const CACHE_VERSION = "elh-v18";
 
 const APP_SHELL = [
   "./",
@@ -54,6 +54,8 @@ const APP_SHELL = [
   "js/components/copy-paste.js",
   "js/components/recorder-ui.js",
   "js/components/exercise-start.js",
+  "js/components/pdf-viewer.js",
+  "js/components/run-divider.js",
   "js/views/ai-studio.js",
   "js/views/exercise.js",
   "js/services/schema.js",
@@ -70,6 +72,7 @@ const APP_SHELL = [
   "js/services/enrich-ops.js",
   "js/services/analysis.js",
   "js/services/exercise.js",
+  "js/services/run-split.js",
   "js/services/exercise-ops.js",
   "js/services/exercise-remap.js",
   "js/services/local-schema.js",
@@ -101,6 +104,9 @@ const APP_SHELL = [
   "js/services/notebook-ops.js",
   "js/services/notebook-text.js",
   "js/vendor/idb.js",
+  "js/vendor/pdfjs/pdf.min.mjs",
+  "js/vendor/pdfjs/pdf.worker.min.mjs",
+  "js/vendor/pdfjs/pdf.renderer.min.mjs",
   "assets/icons/icon-192.png",
   "assets/icons/icon-512.png",
   "assets/icons/icon-maskable-512.png",

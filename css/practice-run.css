@@ -91,6 +91,31 @@ body[data-route="practice-run"] .view { max-width: none; padding: 0; }
 .write-count[data-warn="true"] { color: var(--err-vocab); }
 .run[data-skill="W"] .run-sheet-body { display: flex; flex-direction: column; flex: 1; }
 
+/* ---- Divider (two columns only) ---- */
+.run-divider { display: none; }
+@media (min-width: 1024px) {
+  .run-body { gap: 0; grid-template-columns: minmax(0, var(--run-left, 1.25fr)) 16px minmax(0, var(--run-right, 1fr)); }
+  .run-divider { display: flex; align-items: center; justify-content: center; min-width: 12px; cursor: col-resize; touch-action: none; user-select: none; border-radius: var(--radius-sm); }
+  .run-divider-grip { width: 4px; height: 48px; border-radius: 2px; background: var(--border); }
+  .run-divider:hover .run-divider-grip, .run-divider:focus-visible .run-divider-grip { background: var(--teal-500); }
+  .run-divider:focus-visible { outline: 2px solid var(--teal-500); outline-offset: -2px; }
+  /* while dragging, nothing inside the panes (PDF iframe, canvases) may take the pointer */
+  .run-body.is-dragging { cursor: col-resize; user-select: none; }
+  .run-body.is-dragging .run-pane { pointer-events: none; }
+}
+
+/* ---- PDF.js viewer (iPhone / iPad) ---- */
+.pdfv { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.pdfv-bar { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--border); background: var(--surface); }
+.pdfv-btn { min-width: 44px; padding: 0 12px; }
+.pdfv-zoom, .pdfv-page { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--navy-900); }
+.pdfv-page { margin-left: auto; }
+.pdfv-scroll { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; background: var(--band-empty); }
+.pdfv-pg { flex: none; margin-inline: auto; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.25); }
+.pdfv-pg canvas { display: block; }
+.pdfv-pg[data-error="true"]::after { content: "Không vẽ được trang này."; display: block; padding: var(--space-md); color: var(--text-muted); }
+.pdfv-msg { margin: var(--space-md); }
+
 /* ---- Below 1024px: tabs "Đề | Phiếu" ---- */
 @media (max-width: 1023px) {
   .run-tabs { display: flex; }

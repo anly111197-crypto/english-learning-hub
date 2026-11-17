@@ -3,12 +3,16 @@
 // not in localStorage, not in the service worker cache) and never sent anywhere. Only their NAMES are remembered.
 import { h } from "../components/dom.js";
 import { showToast } from "../components/toast.js";
+import { createPdfViewer } from "../components/pdf-viewer.js";
+import { isAppleTouch } from "../services/recorder.js";
 import { isHttpsUrl } from "../services/practice-store.js";
 import {
   classifyFiles, trackLabel, driveFileId, drivePreviewUrl, filesKey, loadFileNames, saveFileNames,
 } from "../services/practice-run.js";
 
 const SEEK_SECONDS = 5;
+
+const appleDevice = () => isAppleTouch({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
 
 // opts: { book, test, skill, testRec, storage, onPlay?() }  onPlay runs every time the audio starts playing
 export function createSource({ book, test, skill, testRec, storage, onPlay = null }) {
@@ -23,7 +27,11 @@ export function createSource({ book, test, skill, testRec, storage, onPlay = nul
     track: 0,
   };
 
+  let viewer = null; // PDF.js viewer (iPhone / iPad only)
+  const disposeViewer = () => { viewer?.destroy(); viewer = null; };
+
   const revokeAll = () => {
+    disposeViewer();
     if (s.pdf) URL.revokeObjectURL(s.pdf.url);
     for (const t of s.tracks) URL.revokeObjectURL(t.url);
     s.pdf = null;
@@ -60,6 +68,7 @@ export function createSource({ book, test, skill, testRec, storage, onPlay = nul
     }
     if (ignored.length) showToast(`Bỏ qua ${ignored.length} file không phải PDF hoặc audio.`, "error");
     if (pdf) {
+      disposeViewer();
       if (s.pdf) URL.revokeObjectURL(s.pdf.url);
       s.pdf = { url: URL.createObjectURL(pdf), name: pdf.name };
     }
@@ -81,6 +90,13 @@ export function createSource({ book, test, skill, testRec, storage, onPlay = nul
 
   const chooseButton = (label = "Chọn file trên máy") => h("button", { type: "button", class: "btn btn-primary", dataset: { role: "choose" }, onClick: () => input.click() }, label);
 
+  // iPhone / iPad cannot scroll a PDF inside an iframe: draw it with PDF.js on canvases instead. Other devices keep the iframe.
+  function pdfFrame() {
+    if (!appleDevice()) return h("iframe", { class: "run-pdf", src: s.pdf.url, title: `Đề: ${s.pdf.name}` });
+    viewer = createPdfViewer({ url: s.pdf.url, name: s.pdf.name });
+    return viewer.el;
+  }
+
   function renderFileMode() {
     const remembered = loadFileNames(storage, filesKey(book, test));
     const hint = [];
@@ -97,7 +113,7 @@ export function createSource({ book, test, skill, testRec, storage, onPlay = nul
         : "Chọn file PDF của đề. File chỉ được đọc trong phiên này, không lưu và không gửi đi đâu."),
       ...hint,
       s.pdf
-        ? h("iframe", { class: "run-pdf", src: s.pdf.url, title: `Đề: ${s.pdf.name}` })
+        ? pdfFrame()
         : h("div", { class: "source-empty" }, h("p", {}, "Chưa chọn đề PDF.")),
     ];
   }
@@ -128,7 +144,9 @@ export function createSource({ book, test, skill, testRec, storage, onPlay = nul
     return [
       h("div", { class: "source-actions" }, openNewTab(pdfLink), switchBtn),
       h("p", { class: "source-hint", dataset: { role: "drive-note" } },
-        "Khung xem của Drive. Nếu khung trống hoặc báo lỗi (Safari có thể chặn), bấm \"Chọn file trên máy\" để dùng file PDF đã tải về."),
+        appleDevice()
+          ? "Trên iPhone / iPad, khung xem của Drive có thể chỉ hiện trang đầu và không cuộn được. Bấm \"Mở PDF trong tab mới\" để đọc cả đề, hoặc \"Chọn file trên máy\" để cuộn ngay trong trang."
+          : "Khung xem của Drive. Nếu khung trống hoặc báo lỗi (Safari có thể chặn), bấm \"Chọn file trên máy\" để dùng file PDF đã tải về."),
       h("iframe", { class: "run-pdf", src: drivePreviewUrl(driveId), title: "Đề PDF (Google Drive)", referrerpolicy: "no-referrer" }),
       wantsAudio ? h("p", { class: "source-hint" }, "Audio chỉ phát trong trang khi chọn file trên máy. Với link Drive, mở từng Part ở tab mới:") : null,
       wantsAudio ? links : null,
@@ -136,6 +154,7 @@ export function createSource({ book, test, skill, testRec, storage, onPlay = nul
   }
 
   function renderBody() {
+    disposeViewer();
     for (const b of modeButtons) b.setAttribute("aria-pressed", String(b.dataset.mode === s.mode));
     body.replaceChildren(...(s.mode === "file" ? renderFileMode() : renderDriveMode()).filter(Boolean));
   }

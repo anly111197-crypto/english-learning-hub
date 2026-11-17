@@ -1524,6 +1524,110 @@ try {
       await sleep(700);
       ok("a new piece starts blank after 'Xong'", (await evalJs(`document.querySelector('#w-text').value`)) === "");
     }
+    // A small multi-page PDF made here (big "Page N" text, nothing from Cambridge). Proper xref table.
+    const multiPagePdf = (dir, pages = 3) => {
+      const objs = [];
+      objs[1] = "<</Type/Catalog/Pages 2 0 R>>";
+      objs[2] = `<</Type/Pages/Kids[${Array.from({ length: pages }, (_, i) => `${4 + i * 2} 0 R`).join(" ")}]/Count ${pages}>>`;
+      objs[3] = "<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>";
+      for (let i = 0; i < pages; i++) {
+        const stream = `BT /F1 72 Tf 60 650 Td (Page ${i + 1}) Tj ET 0 0 0 rg 60 100 300 40 re f`;
+        objs[4 + i * 2] = `<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Resources<</Font<</F1 3 0 R>>>>/Contents ${5 + i * 2} 0 R>>`;
+        objs[5 + i * 2] = `<</Length ${stream.length}>>\nstream\n${stream}\nendstream`;
+      }
+      let out = "%PDF-1.4\n"; const offs = [];
+      for (let n = 1; n < objs.length; n++) { offs[n] = out.length; out += `${n} 0 obj\n${objs[n]}\nendobj\n`; }
+      const xref = out.length;
+      out += `xref\n0 ${objs.length}\n0000000000 65535 f \n${offs.slice(1).map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<</Size ${objs.length}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF\n`;
+      const p = join(dir, "Sample multi page.pdf"); writeFileSync(p, out); return p;
+    };
+    const mouse = (type, x, y) => send("Input.dispatchMouseEvent", { type, x, y, button: "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: 1 });
+    const dividerPos = () => evalJs(`(() => { const r = document.querySelector('[data-role=run-divider]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()`);
+    const leftRatio = () => evalJs(`(() => { const a = document.querySelector('.run-source').getBoundingClientRect(), b = document.querySelector('.run-sheet').getBoundingClientRect(); return a.width / (a.width + b.width); })()`);
+    const dragTo = async (x) => { const p = await dividerPos(); await mouse("mousePressed", p.x, p.y); await mouse("mouseMoved", (p.x + x) / 2, p.y); await mouse("mouseMoved", x, p.y); return p; };
+
+    if (scenario === "run-split") {
+      // Divider between the exam pane and the answer sheet (laptop), and no divider on a phone.
+      await seed();
+      await go(BASE + "#/practice/15/1/R");
+      ok("the run screen opens", await runReady(".run .ans"));
+      await pickFiles([pdfOn(fakeDir)]);
+      const d0 = await dividerPos();
+      ok("divider: role=separator, focusable, at least 12px wide, between the two panes", (await evalJs(`(() => { const d = document.querySelector('[data-role=run-divider]'); const a = document.querySelector('.run-source').getBoundingClientRect(), b = document.querySelector('.run-sheet').getBoundingClientRect(), r = d.getBoundingClientRect(); return d.getAttribute('role') === 'separator' && d.tabIndex === 0 && a.right <= r.left + 1 && r.right <= b.left + 1; })()`)) && d0.w >= 12, `w=${d0.w}`);
+      const r0 = await leftRatio();
+      ok("starts at the default ratio (~55.5%)", Math.abs(r0 - 0.555) < 0.03 && (await evalJs(`document.querySelector('[data-role=run-divider]').getAttribute('aria-valuenow')`)) === "56", String(r0));
+      await shot("split-default.png");
+
+      const body = await evalJs(`(() => { const r = document.querySelector('.run-body').getBoundingClientRect(); return { left: r.left, w: r.width }; })()`);
+      await dragTo(body.left + body.w * 0.4);
+      ok("while dragging the panes ignore the pointer (the PDF frame cannot swallow the drag)", (await evalJs(`getComputedStyle(document.querySelector('.run-source')).pointerEvents`)) === "none" && (await evalJs(`document.querySelector('.run-body').classList.contains('is-dragging')`)));
+      const p1 = await dividerPos();
+      await mouse("mouseReleased", p1.x, p1.y);
+      ok("dragging to 40% resizes the panes, the overlay is gone, the value is saved", Math.abs((await leftRatio()) - 0.4) < 0.03 && (await evalJs(`getComputedStyle(document.querySelector('.run-source')).pointerEvents`)) !== "none" && Math.abs(Number(await ls("elh.run.split")) - 40) < 3, `${await leftRatio()} ls=${await ls("elh.run.split")}`);
+      await dragTo(2);
+      { const p = await dividerPos(); await mouse("mouseReleased", p.x, p.y); }
+      ok("dragging far left stops at 25%", Math.abs((await leftRatio()) - 0.25) < 0.02 && (await ls("elh.run.split")) === "25", `${await leftRatio()}`);
+      await dragTo(5000);
+      { const p = await dividerPos(); await mouse("mouseReleased", p.x, p.y); }
+      ok("dragging far right stops at 75%", Math.abs((await leftRatio()) - 0.75) < 0.02, String(await leftRatio()));
+      await dragTo(body.left + body.w * 0.3);
+      { const p = await dividerPos(); await mouse("mouseReleased", p.x, p.y); }
+
+      await reload();
+      await runReady(".run .ans");
+      ok("after a reload the ratio is remembered (~30%)", Math.abs((await leftRatio()) - 0.3) < 0.03, String(await leftRatio()));
+      ok("the ratio is not in IndexedDB (localStorage only)", !(await evalJs(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const out = []; let n = r.result.objectStoreNames.length; for (const s of r.result.objectStoreNames) { const q = r.result.transaction(s).objectStore(s).getAll(); q.onsuccess = () => { out.push(JSON.stringify(q.result)); if (--n === 0) res(out.join('').includes('elh.run.split')); }; } }; })`)));
+      await focus("[data-role=run-divider]");
+      const before = Number(await evalJs(`document.querySelector('[data-role=run-divider]').getAttribute('aria-valuenow')`));
+      await press("ArrowRight");
+      const afterR = Number(await evalJs(`document.querySelector('[data-role=run-divider]').getAttribute('aria-valuenow')`));
+      await press("ArrowLeft", 2);
+      const afterL = Number(await evalJs(`document.querySelector('[data-role=run-divider]').getAttribute('aria-valuenow')`));
+      ok("arrow keys change the ratio by 5%", afterR - before === 5 && afterR - afterL === 10, `${before} -> ${afterR} -> ${afterL}`);
+      await evalJs(`document.querySelector('[data-role=run-divider]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
+      ok("double click returns to the default and forgets the saved value", Math.abs((await leftRatio()) - 0.555) < 0.03 && (await ls("elh.run.split")) === null, `${await leftRatio()} ls=${await ls("elh.run.split")}`);
+
+      // Phone: one pane at a time through the Đề / Phiếu tabs -> no divider at all
+      await go(BASE + "#/practice/15/1/R", 390, 844);
+      await runReady(".run .ans");
+      ok("390px: no divider on the 'Đề' tab", (await evalJs(`getComputedStyle(document.querySelector('[data-role=run-divider]')).display`)) === "none");
+      await evalJs(`document.querySelector('.run-tabs [data-tab=sheet]').click()`);
+      ok("390px: no divider on the 'Phiếu' tab either, and no horizontal scroll", (await evalJs(`getComputedStyle(document.querySelector('[data-role=run-divider]')).display`)) === "none" && await evalJs(`document.documentElement.scrollWidth <= innerWidth`));
+      console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
+    }
+    if (scenario === "run-ipad") {
+      // iPad Pro 11" (landscape) simulated through CDP: iPadOS-as-Mac user agent, touch points, touch emulation.
+      // Safari cannot scroll a PDF in an iframe, so the app must draw it with PDF.js on canvases.
+      const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15";
+      await send("Emulation.setUserAgentOverride", { userAgent: UA, platform: "MacIntel" });
+      await send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+      await seed(1194, 834);
+      await go(BASE + "#/practice/15/1/R", 1194, 834);
+      ok("the run screen opens as an iPad", await runReady(".run .ans") && (await evalJs(`navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1`)));
+      const pdf = multiPagePdf(fakeDir, 3);
+      await pickFiles([pdf]);
+      ok("PDF.js viewer instead of an iframe", await waitFor(`document.querySelector('[data-role=pdf-viewer]')`, 8000) && (await count(".source-body iframe")) === 0);
+      ok("pages are drawn on canvases (page 1 has real ink)", await waitFor(`document.querySelector('.pdfv-pg canvas')`, 15000) && await waitFor(`(() => { const c = document.querySelector('.pdfv-pg canvas'); if (!c) return false; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 4) if (d[i] < 120) return true; return false; })()`, 8000));
+      ok("shows 'Trang 1 / 3' and 3 page boxes", (await text("[data-role=pdf-page]")) === "Trang 1 / 3" && (await count(".pdfv-pg")) === 3, await text("[data-role=pdf-page]"));
+      const h1 = await evalJs(`document.querySelector('.pdfv-pg').getBoundingClientRect().height`);
+      const sc = await evalJs(`(() => { const r = document.querySelector('[data-role=pdf-scroll]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      await send("Input.dispatchMouseEvent", { type: "mouseWheel", x: sc.x, y: sc.y, deltaX: 0, deltaY: h1 + 12 });
+      ok("scrolls to page 2 (scrollTop moved, indicator 'Trang 2 / 3', page 2 drawn)", await waitFor(`document.querySelector('[data-role=pdf-page]').textContent === 'Trang 2 / 3'`, 6000) && (await evalJs(`document.querySelector('[data-role=pdf-scroll]').scrollTop`)) > 100 && await waitFor(`!!document.querySelector('.pdfv-pg[data-page="2"] canvas')`, 10000), await text("[data-role=pdf-page]"));
+      const w0 = await evalJs(`document.querySelector('.pdfv-pg').getBoundingClientRect().width`);
+      await click("[data-role=pdf-zoom-in]");
+      await sleep(400);
+      ok("the + button zooms in (125%) and the page box grows", (await text("[data-role=pdf-zoom]")) === "125%" && (await evalJs(`document.querySelector('.pdfv-pg').getBoundingClientRect().width`)) > w0 * 1.2);
+      await click("[data-role=pdf-zoom-out]");
+      ok("the − button zooms back (100%)", (await text("[data-role=pdf-zoom]")) === "100%");
+      await shot("ipad-pdf.png");
+      ok("the divider is there on the iPad (two columns, touch-friendly >= 12px)", (await dividerPos()).w >= 12);
+      ok("nothing from the file is stored (names only)", !(await evalJs(`JSON.stringify(Object.entries(localStorage)).includes('blob:')`)));
+      await evalJs(`location.hash = '#/practice'`);
+      await sleep(600);
+      ok("leaving the run screen removes the viewer", (await count("[data-role=pdf-viewer]")) === 0);
+      ok("the vendored PDF.js is same-origin (no CDN request): worker and renderer files exist", await evalJs(`Promise.all(['pdf.min.mjs', 'pdf.worker.min.mjs', 'pdf.renderer.min.mjs'].map((f) => fetch('js/vendor/pdfjs/' + f, { method: 'HEAD' }).then((r) => r.ok))).then((a) => a.every(Boolean))`));
+      console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
+    }
     if (scenario === "run-capture" || scenario === "run-capture-m") {
       // Quick-capture button in the header of the practice screen (step 6b follow-up): phone and laptop.
       const mobile = scenario === "run-capture-m";

@@ -5,6 +5,7 @@ import { h, todayIso, formatDateVi } from "../components/dom.js";
 import { showToast } from "../components/toast.js";
 import { confirmModal } from "../components/modal.js";
 import { openQuickCapture } from "../components/quick-capture.js";
+import { createRunDivider } from "../components/run-divider.js";
 import { openResultModal } from "./practice-forms.js";
 import { createSource } from "./practice-run-source.js";
 import { rawToBand, formatBand } from "../services/bands.js";
@@ -467,11 +468,13 @@ function buildFrame(testRec) {
       onClick: () => { x.root.dataset.tab = id; syncTabs(); },
     }, label)));
 
-  x.root = h("div", { class: "run", dataset: { skill: x.skill, phase: x.draft.phase, tab: "source", locked: "false" } },
-    header, tabs, x.source.audioBar,
-    h("div", { class: "run-body" },
+  const runBody = h("div", { class: "run-body" });
+  runBody.append(
       h("section", { class: "run-pane run-source", "aria-label": "Đề" }, x.source.pane),
-      h("section", { class: "run-pane run-sheet", "aria-label": x.skill === "W" ? "Bài viết" : "Phiếu trả lời" }, sheet)));
+      createRunDivider(runBody, storage()),
+      h("section", { class: "run-pane run-sheet", "aria-label": x.skill === "W" ? "Bài viết" : "Phiếu trả lời" }, sheet));
+  x.root = h("div", { class: "run", dataset: { skill: x.skill, phase: x.draft.phase, tab: "source", locked: "false" } },
+    header, tabs, x.source.audioBar, runBody);
   x.refs = { time, timeLabel, pause, limit, timeUp, action, done, info, sheet, tabs, title };
   x.refs.limit = limit;
   return x.root;
