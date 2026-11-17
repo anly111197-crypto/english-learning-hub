@@ -6,6 +6,7 @@ import { practiceView } from "./views/practice.js";
 import { practiceRunView } from "./views/practice-run.js";
 import { practiceNotebooksView } from "./views/practice-notebooks.js";
 import { aiWritingView, aiSpeakingView } from "./views/ai-studio.js";
+import { exerciseView } from "./views/exercise.js";
 import { vocabView } from "./views/vocab.js";
 import { errorsView } from "./views/errors.js";
 import { warmupView } from "./views/warmup.js";
@@ -56,6 +57,9 @@ addRoute("/practice/:book/:test/:skill", {
   fallback: "/practice",
   validate: (p) => /^(1\d)$/.test(p.book) && /^[1-4]$/.test(p.test) && /^[LRW]$/.test(p.skill),
 });
+
+// Exercise made from mistakes (spec 5.8, step 8c): one question at a time, then the result.
+addRoute("/errors/exercise/:id", { key: "exercise", nav: "errors", title: "Bài tập từ lỗi", view: exerciseView, fallback: "/errors" });
 
 // Dev tools exist only when the page is opened with ?dev=1 (the query comes before the #).
 if (new URLSearchParams(location.search).get("dev") === "1") {

@@ -1,8 +1,8 @@
 // The only door to Claude for the views (spec 7.3, 8). A view calls startTask() and gets a session back; it never
 // builds prompts or checks JSON itself. Today there is one mode, "manual" (copy / paste). Step 9 adds "api" here:
 // that session will resolve its own result, and the views will not need to change.
-import { buildPrompt, buildAnalysisPrompt } from "./prompts.js";
-import { parseEnrichResult, parseAnalysisResult, ANALYSIS_TASKS } from "./schema.js";
+import { buildPrompt, buildAnalysisPrompt, buildExercisePrompt } from "./prompts.js";
+import { parseEnrichResult, parseAnalysisResult, parseExerciseResult, ANALYSIS_TASKS } from "./schema.js";
 
 // Step 9 will read the saved "aiMode" setting (manual | api) here. Until then everything is copy/paste.
 export const getAiMode = () => "manual";
@@ -12,7 +12,16 @@ export const getAiMode = () => "manual";
 // nothing is saved by this layer.
 // Writing & Speaking (step 8b): task is "writing_task1" | "writing_task2" | "speaking"; input = { questionText, text,
 // wordCount, taskType, part, signatures }. accept() returns the cleaned analysis result or throws AiFormatError.
+// Exercises (step 8c): task "exercise_generate"; input = { errors: [{ errorId, label, original, corrected, type, signature, ruleVi, correctExample }] }.
+// accept() returns { items, notes } or throws AiFormatError; nothing is saved by this layer.
 export function startTask(task, input) {
+  if (task === "exercise_generate") {
+    const errors = input.errors ?? [];
+    return {
+      mode: getAiMode(), prompt: buildExercisePrompt(errors),
+      accept: (pasted) => parseExerciseResult(pasted, errors.map((e) => ({ errorId: e.errorId, label: e.label ?? e.original }))),
+    };
+  }
   if (ANALYSIS_TASKS.includes(task)) {
     return { mode: getAiMode(), prompt: buildAnalysisPrompt(task, input), accept: (pasted) => parseAnalysisResult(task, pasted) };
   }

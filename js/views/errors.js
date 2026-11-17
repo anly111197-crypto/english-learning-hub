@@ -1,11 +1,13 @@
 // Grammar Notebook (spec 5.8): cards, 10 groups, status filter, sort, search, error cards with details,
-// edit panel, merge, bulk actions. Exercises come in Step 8.
+// edit panel, merge, bulk actions, exercises from mistakes (step 8c).
 import { h, icon, formatDateVi } from "../components/dom.js";
 import { openSheet } from "../components/sheet.js";
 import { openModal, confirmModal } from "../components/modal.js";
 import { showToast } from "../components/toast.js";
 import { notesBlock } from "../components/notes-block.js";
 import { openEnrich } from "../components/enrich-modal.js";
+import { openExerciseStart } from "../components/exercise-start.js";
+import { practiceStats, practiceLabel, pickExerciseErrors, unfinishedExercises, recentExercises } from "../services/exercise.js";
 import { loadErrorData, updateError, setStatus, mergeErrors, deleteErrors } from "../services/error-ops.js";
 import { STATUS_LABELS, STATUSES, summarizeErrors, filterErrors, sortErrors, normalizeType } from "../services/errors.js";
 import { ERROR_TYPES, errorTypeLabel, sourceLabel, SKILL_LABELS, partLabel } from "../services/taxonomy.js";
@@ -32,6 +34,11 @@ const state = {
 const live = () => state.data.errors.filter((e) => !e.deleted);
 
 function derive() {
+  state.practice = new Map();
+  for (const e of state.data.errors) {
+    const stats = practiceStats(e.id, state.data.exercises ?? []);
+    if (stats) state.practice.set(e.id, stats);
+  }
   state.occBy = new Map();
   for (const o of state.data.occurrences) {
     if (!state.occBy.has(o.itemId)) state.occBy.set(o.itemId, []);
@@ -169,6 +176,7 @@ function errorCard(e) {
     h("p", { class: "error-meta" },
       latest ? `${sourceLabel(latest.source)} · ` : "",
       h("span", { class: "nowrap" }, formatDateVi(latest?.date ?? e.lastSeen))),
+    state.practice.get(e.id) ? h("p", { class: "error-practice", dataset: { role: "practice-stat" } }, practiceLabel(state.practice.get(e.id))) : null,
     h("div", { class: "error-lines" },
       h("p", { class: `line line-wrong${e.corrected ? "" : " no-fix"}` }, icon("i-x-circle", "line-icon"), h("span", { class: "line-text" }, tokens(d.wrong, "tok-del"))),
       e.corrected
@@ -197,10 +205,37 @@ function renderList() {
 }
 
 // ---- Bulk bar and exercise column ----
+const selectedErrors = () => live().filter((e) => state.selected.has(e.id));
+const startExercise = () => openExerciseStart({ selected: selectedErrors(), allErrors: live() });
+
+// The right-hand column: make an exercise from the ticked mistakes (or the 5 of rule 6.4), continue one, see the last ones.
+function renderExerciseCol() {
+  const col = state.refs.exercises;
+  const n = state.selected.size;
+  const exs = state.data?.exercises ?? [];
+  const proposed = n === 0 && state.data ? pickExerciseErrors(live()) : [];
+  const label = n > 0 ? `Tạo bài tập từ ${n} lỗi` : proposed.length ? `Tạo bài tập (${proposed.length} lỗi ưu tiên)` : "Tạo bài tập";
+  const date = (iso) => { const d = new Date(iso); return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`; };
+  const open = unfinishedExercises(exs);
+  const recent = recentExercises(exs);
+  col.replaceChildren(...[
+    h("h2", { class: "exercise-title" }, "Bài tập từ lỗi"),
+    h("p", { class: "muted" }, "Chọn 1 đến 5 lỗi đã hoàn thiện để Claude soạn 3 câu cho mỗi lỗi (điền, sửa, trắc nghiệm, viết lại). Không chọn gì thì app đề xuất 5 lỗi ưu tiên."),
+    h("p", { class: "exercise-selected" }, n ? `Đã chọn ${n} lỗi.` : "Chưa chọn lỗi nào."),
+    h("button", { type: "button", class: "btn btn-primary", dataset: { role: "exercise-start" }, disabled: n === 0 && proposed.length === 0, onClick: startExercise }, label),
+    n === 0 && proposed.length === 0 && state.data ? h("p", { class: "muted", dataset: { role: "exercise-none" } }, "Chưa có lỗi nào đủ điều kiện: cần hoàn thiện với Claude trước.") : null,
+    open.length ? h("h3", { class: "exercise-sub" }, "Đang làm dở") : null,
+    open.length ? h("ul", { class: "exercise-list", dataset: { role: "exercise-open" } }, open.map((ex) => h("li", {},
+      h("a", { class: "link", href: `#/errors/exercise/${ex.id}` }, `Làm tiếp · ${ex.items.filter((it) => it.userAnswer !== null && it.userAnswer !== undefined).length}/${ex.items.length} câu`)))) : null,
+    recent.length ? h("h3", { class: "exercise-sub" }, "Gần đây") : null,
+    recent.length ? h("ul", { class: "exercise-list", dataset: { role: "exercise-recent" } }, recent.map((ex) => h("li", {},
+      h("a", { class: "link", href: `#/errors/exercise/${ex.id}` }, `${date(ex.doneAt)} · ${ex.errorIds.length} lỗi · đúng ${ex.score ?? 0}/${ex.items.length}`)))) : null,
+  ].filter(Boolean));
+}
 function renderBulk() {
   const n = state.selected.size;
   state.refs.bulk.hidden = n === 0;
-  state.refs.exercises.querySelector(".exercise-selected").textContent = n ? `Đã chọn ${n} lỗi.` : "Chưa chọn lỗi nào.";
+  renderExerciseCol();
   if (n === 0) return;
   const ids = [...state.selected];
   state.refs.bulk.replaceChildren(
@@ -211,7 +246,7 @@ function renderBulk() {
       await reload();
     } }, "Đánh dấu đã khắc phục"),
     h("button", { type: "button", class: "btn btn-outline btn-sm", dataset: { role: "enrich-selected" }, onClick: () => openEnrich("error", { selectedIds: ids.slice(0, 20) }) }, `Hoàn thiện ${Math.min(n, 20)} lỗi với Claude`),
-    h("button", { type: "button", class: "btn btn-outline btn-sm", disabled: true, title: "Có ở Bước 8c" }, `Tạo bài tập từ ${n} lỗi`, h("span", { class: "btn-note" }, "Có ở Bước 8c")),
+    h("button", { type: "button", class: "btn btn-outline btn-sm", dataset: { role: "exercise-bulk" }, onClick: startExercise }, `Tạo bài tập từ ${n} lỗi`),
     h("button", { type: "button", class: "btn btn-danger btn-sm", onClick: async () => {
       const ok = await confirmModal({ title: "Xoá lỗi", danger: true, confirmLabel: `Xoá ${n} lỗi`, message: `Xoá ${n} lỗi đã chọn? Việc này không thể hoàn tác từ trong ứng dụng (hãy sao lưu trước nếu cần).` });
       if (!ok) return;
@@ -341,11 +376,8 @@ export const errorsView = {
     state.refs.count = h("p", { class: "muted list-count" }, "Đang tải…");
     state.refs.bulk = h("div", { class: "bulk-bar", hidden: true });
     state.refs.list = h("div", { class: "error-list-host" });
-    state.refs.exercises = h("aside", { class: "exercise-col" },
-      h("h2", { class: "exercise-title" }, "Bài tập từ lỗi đã chọn"),
-      h("p", { class: "muted" }, "Chọn các lỗi trong danh sách để tạo bài tập điền, sửa và viết lại, rồi chấm."),
-      h("p", { class: "exercise-selected" }, "Chưa chọn lỗi nào."),
-      h("button", { type: "button", class: "btn btn-outline", disabled: true, title: "Có ở Bước 8c" }, "Tạo bài tập", h("span", { class: "btn-note" }, "Có ở Bước 8c")));
+    state.refs.exercises = h("aside", { class: "exercise-col" });
+    renderExerciseCol();
 
     container.replaceChildren(h("div", { class: "errors" },
       h("h1", { class: "page-title" }, "Grammar Notebook"),

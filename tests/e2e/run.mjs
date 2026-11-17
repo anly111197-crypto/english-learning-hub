@@ -573,7 +573,7 @@ try {
 
     // ---- fixed, then written again -> Lặp lại ----
     await evalJs(`${errCard("He go to")}.querySelector('input[type=checkbox]').click()`);
-    ok("bulk bar: 1 selected; exercise button disabled with its note", await evalJs(`document.querySelector('.bulk-bar').innerText.includes('1 đã chọn') && [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Tạo bài tập')).disabled && document.querySelector('.exercise-col').innerText.includes('Có ở Bước 8c') && document.querySelector('.exercise-selected').textContent === 'Đã chọn 1 lỗi.'`));
+    ok("bulk bar: 1 selected; the exercise button is on (step 8c), the column says how many are chosen", await evalJs(`document.querySelector('.bulk-bar').innerText.includes('1 đã chọn') && (() => { const b = [...document.querySelectorAll('.bulk-bar button')].find(b => b.textContent.includes('Tạo bài tập')); return !!b && !b.disabled && b.textContent === 'Tạo bài tập từ 1 lỗi'; })() && document.querySelector('[data-role=exercise-start]').textContent === 'Tạo bài tập từ 1 lỗi' && document.querySelector('.exercise-selected').textContent === 'Đã chọn 1 lỗi.'`));
     await clickText(".bulk-bar button", "Đánh dấu đã khắc phục"); await sleep(700);
     errors = await dbAll("errors");
     ok("marked fixed", errors.find((e) => e.original.startsWith("He go")).status === "fixed");
@@ -2447,6 +2447,183 @@ try {
     await realClick("[data-role=rec-stop]");
     ok("and it records and saves without it", await waitFor(`document.querySelectorAll('.rec-item').length === 6`, 6000));
     ok("no horizontal overflow at the end", await noOverflow());
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "exercise" || scenario === "exercise-m") {
+    // Exercises from mistakes (step 8c): 2 mistakes chosen, a sample answer made by this script (no real Claude), 6 questions
+    // answered with the keyboard (right, wrong, self-marked rewrite, "Tôi đúng ý"), result, "Đánh dấu đã khắc phục".
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const mobile = scenario === "exercise-m";
+    const [W, H] = mobile ? [390, 844] : [1280, 800];
+    const keyEv = async (key, { code, vk, text, modifiers = 0 }) => {
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: vk, text, modifiers });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: vk, modifiers });
+    };
+    const pressEnter = () => keyEv("Enter", { code: "Enter", vk: 13, text: "\r" });
+    const pressDigit = (d) => keyEv(String(d), { code: "Digit" + d, vk: 48 + Number(d), text: String(d) });
+    const typeText = (t) => send("Input.insertText", { text: t });
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.innerText ?? ''`);
+    const count = (sel) => ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+      await sleep(300);
+    };
+    const dbRaw = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result); }; })`);
+    const dbLive = async (store) => (await dbRaw(store)).filter((x) => !x.deleted);
+    const putRec = (store, rec) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction(${JSON.stringify(store)}, 'readwrite'); tx.objectStore(${JSON.stringify(store)}).put(${JSON.stringify(rec)}); tx.oncomplete = () => res(true); tx.onerror = tx.onabort = () => res('IDB error'); }; })`);
+    const toastText = () => text(".status-line > span");
+    const setPaste = (s) => ev(`window.__paste = ${JSON.stringify(s)}`);
+    const noOverflow = () => ev(`document.documentElement.scrollWidth <= innerWidth`);
+    const verdict = () => text("[data-role=ex-verdict]");
+    const progress = () => text("[data-role=ex-progress]");
+    const today = await ev(`(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })()`);
+    const now = new Date().toISOString();
+    const rec = (extra) => ({ createdAt: now, updatedAt: now, deleted: false, ...extra });
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: `Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText(t) { window.__clip = t; return Promise.resolve(); }, readText() { return Promise.resolve(window.__paste || ''); } } });` });
+
+    await go(BASE + "#/errors", W, H);
+    await waitFor(`document.querySelector('[data-role=exercise-start]')`, 15000);
+    const errBase = { corrected: "x", explanationVi: "Quy tắc.", correctExample: "Ex.", firstSeen: today, lastSeen: today, status: "new", warmupStreak: 0 };
+    await putRec("errors", rec({ ...errBase, id: "e1", original: "He go to school every day.", corrected: "He goes to school every day.", type: "subject-verb-agreement", signature: "subject-verb-agreement:third-person-s", occurrences: 3, enriched: true }));
+    await putRec("errors", rec({ ...errBase, id: "e2", original: "I have visited Paris last year.", corrected: "I visited Paris last year.", type: "tenses", signature: "tenses:present-perfect-vs-past-simple", occurrences: 2, enriched: true, status: "practicing" }));
+    await putRec("errors", rec({ ...errBase, id: "e3", original: "Many peoples agree.", corrected: "Many people agree.", type: "plurals-countability", signature: "pending:e3", occurrences: 5, enriched: false }));
+    await send("Page.reload"); await sleep(1300);
+    await waitFor(`document.querySelectorAll('.error-card').length === 3`, 10000);
+
+    ok("no practice yet: no 'Đã luyện' line on any card", (await count("[data-role=practice-stat]")) === 0);
+    ok("nothing selected: the button proposes the 5 priority mistakes (here 2 are ready)", (await text("[data-role=exercise-start]")) === "Tạo bài tập (2 lỗi ưu tiên)" && !(await ev(`document.querySelector('[data-role=exercise-start]').disabled`)) && (await text(".exercise-selected")) === "Chưa chọn lỗi nào.");
+    await realClick("[data-role=exercise-start]");
+    ok("the dialog lists the 2 ready mistakes by rule 6.4 (the unfinished 'Many peoples' is left out) and says it was proposed", await waitFor(`document.querySelector('dialog.modal[open] [data-role=ex-errors]')`, 4000) && (await ev(`[...document.querySelectorAll('[data-role=ex-errors] li')].map((l) => l.dataset.id).join(',')`)) === "e1,e2" && (await text("[data-role=ex-intro]")).includes("đề xuất") && (await text("[data-role=ex-intro]")).includes("6 câu"), await text("[data-role=ex-intro]"));
+    await ev(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Hủy').click()`);
+    await sleep(300);
+
+    // selecting: not ready / too many
+    await realClick(".error-card[data-id=e3] input[type=checkbox]");
+    ok("one chosen: the column says so", (await text(".exercise-selected")) === "Đã chọn 1 lỗi." && (await text("[data-role=exercise-start]")) === "Tạo bài tập từ 1 lỗi");
+    await realClick("[data-role=exercise-start]");
+    ok("an unfinished mistake is refused with a message, no dialog", (await toastText()).includes("1 lỗi chưa hoàn thiện") && (await toastText()).includes("Many peoples agree") && (await count("dialog[open]")) === 0, await toastText());
+    await realClick(".error-card[data-id=e3] input[type=checkbox]");
+    await realClick(".error-card[data-id=e1] input[type=checkbox]");
+    await realClick(".error-card[data-id=e2] input[type=checkbox]");
+    ok("2 chosen", (await text("[data-role=exercise-start]")) === "Tạo bài tập từ 2 lỗi");
+    await realClick("[data-role=exercise-start]");
+    ok("the dialog opens with the 2 chosen mistakes", await waitFor(`document.querySelector('dialog.modal[open] [data-role=ex-errors]')`, 4000) && (await count("[data-role=ex-errors] li")) === 2 && !(await text("[data-role=ex-intro]")).includes("đề xuất"));
+    if (mobile) ok("390px: the dialog fits", await ev(`(() => { const r = document.querySelector('dialog.modal').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; })()`));
+
+    await realClick("[data-role=ex-copy]");
+    const clip = await ev(`window.__clip ?? ''`);
+    ok("prompt: exercise_generate, both mistakes with their ids, exactly 3 questions each, no Cam/Test", clip.includes("exercise_generate") && clip.includes('"errorId": "e1"') && clip.includes('"errorId": "e2"') && clip.includes("EXACTLY 3 questions for each mistake (6 in all)") && clip.includes("He go to school every day.") && !clip.includes("Many peoples") && !/Cam \d|Test \d/.test(clip));
+
+    // answers that must be refused: nothing is stored
+    const item = (id, errorId, kind, extra = {}) => ({ id, errorId, kind, acceptedAnswers: [], explanationVi: "Giải thích.", ...extra });
+    const good = () => [
+      item("q1", "e1", "fill", { question: "Our brother ___ to the gym every morning.", answer: "goes" }),
+      item("q2", "e1", "correct", { question: "She don't like coffee.", answer: "She doesn't like coffee." }),
+      item("q3", "e1", "choose", { question: "A student who ___ hard usually succeeds.", options: ["work", "works", "working"], answer: "works" }),
+      item("q4", "e2", "rewrite", { question: "Rewrite in the past simple: I have visited Berlin last week.", answer: "I visited Berlin last week.", acceptedAnswers: ["Last week I visited Berlin."] }),
+      item("q5", "e2", "fill", { question: "She ___ (go) to Paris in 2019.", answer: "went" }),
+      item("q6", "e2", "choose", { question: "They ___ the report yesterday.", options: ["have finished", "finished", "finish"], answer: "finished" }),
+    ];
+    const wrap = (items, extra = {}) => ({ schemaVersion: 1, task: "exercise_generate", items, ...extra });
+    const readJson = async (v) => { await setPaste(typeof v === "string" ? v : JSON.stringify(v)); await realClick("[data-role=ex-paste]"); await realClick("[data-role=ex-read]"); };
+    const bad = async (name, v, pattern) => { await readJson(v); const msg = await text("[data-role=ex-error]"); ok(name, pattern.test(msg) && msg.includes("Không có gì được lưu") && (await dbRaw("exercises")).length === 0 && (await ev(`location.hash`)) === "#/errors", msg.slice(0, 150)); };
+    await readJson("Xin lỗi, tôi chưa làm được.");
+    ok("not JSON: Vietnamese error, nothing stored", (await text("[data-role=ex-error]")).includes("Không thấy JSON") && (await dbRaw("exercises")).length === 0);
+    await bad("an unknown errorId is refused", wrap([...good().slice(0, 5), item("q6", "zzz", "choose", { question: "x ___", options: ["a", "b", "c"], answer: "a" })]), /errorId "zzz" không khớp/);
+    await bad("a missing answer is refused", wrap([{ ...good()[0], answer: "" }, ...good().slice(1)]), /thiếu answer/);
+    await bad("a choose whose answer is not among the options is refused", wrap([...good().slice(0, 2), { ...good()[2], answer: "work hard" }, ...good().slice(3)]), /không nằm trong options/);
+    await bad("fewer than 3 questions for a mistake is refused", wrap(good().slice(0, 5)), /chỉ có 2 câu/);
+
+    // a good answer, with one question too many for the second mistake (kept 3, a note)
+    await readJson(wrap([...good(), item("q7", "e2", "correct", { question: "I have went to Paris.", answer: "I went to Paris." })]));
+    ok("good answer: the dialog closes, the exercise is stored at once with 6 questions and no answers, and it opens", await waitFor(`/^#\\/errors\\/exercise\\//.test(location.hash)`, 6000) && (await count("dialog[open]")) === 0 && (await dbRaw("exercises")).length === 1);
+    const stored = (await dbRaw("exercises"))[0];
+    ok("stored: errorIds, 6 questions with kind/question/answer, userAnswer and correct empty, no score, no doneAt", stored.errorIds.join() === "e1,e2" && stored.items.length === 6 && stored.items.every((i) => i.userAnswer === null && i.correct === null && i.kind && i.question && i.answer) && stored.score === null && stored.doneAt === null && stored.items.map((i) => i.id).join() === "q1,q2,q3,q4,q5,q6");
+    ok("more than 3 for a mistake: the first 3 kept (different kinds first) and a gentle note, not a refusal", (await toastText()).includes("Claude gửi 4 câu") && (await toastText()).includes("giữ 3 câu"), await toastText());
+    await waitFor(`document.querySelector('[data-role=ex-question]')`, 6000);
+    ok("question 1 of 6: kind 'Điền vào chỗ trống', the input has the focus", (await progress()) === "Câu 1/6" && (await text("[data-role=ex-kind]")) === "Điền vào chỗ trống" && (await ev(`document.activeElement === document.querySelector('[data-role=ex-input]')`)));
+    if (mobile) ok("390px: no overflow, the input and the submit button are at least 44px", await noOverflow() && await ev(`document.querySelector('[data-role=ex-input]').getBoundingClientRect().height >= 44 && document.querySelector('[data-role=ex-submit]').getBoundingClientRect().height >= 44`));
+    await shot(mobile ? "ex-m-question.png" : "ex-d-question.png");
+
+    // Q1 fill: right
+    await typeText("goes"); await pressEnter(); await sleep(400);
+    ok("Q1 right: 'Đúng' (Enter submitted), stored at once", (await verdict()) === "Đúng" && (await dbRaw("exercises"))[0].items[0].userAnswer === "goes" && (await dbRaw("exercises"))[0].items[0].correct === true);
+    await pressEnter(); await sleep(300);
+    // Q2 correct: only the corrected part, with a curly apostrophe
+    ok("Q2 shows the sentence with the mistake and the 'correct' kind", (await progress()) === "Câu 2/6" && (await text("[data-role=ex-kind]")) === "Tìm và sửa lỗi trong câu" && (await text("[data-role=ex-question]")) === "She don't like coffee.");
+    await typeText("doesn’t"); await pressEnter(); await sleep(400);
+    ok("Q2: typing only the corrected part (and ’ for ') is accepted", (await verdict()).startsWith("Đúng") && (await verdict()).includes("phần đã sửa"), await verdict());
+    await pressEnter(); await sleep(300);
+    // Q3 choose by key 2
+    ok("Q3 choose: 3 options numbered 1-3", (await progress()) === "Câu 3/6" && (await count("[data-role=ex-option]")) === 3);
+    await pressDigit(2); await sleep(150);
+    ok("key 2 picks the second option", await ev(`document.querySelectorAll('[data-role=ex-option]')[1].dataset.picked === 'true'`));
+    await pressEnter(); await sleep(400);
+    ok("Q3 right", (await verdict()) === "Đúng");
+
+    // leave and come back: it is a continue
+    await ev(`location.hash = '#/errors'`);
+    await waitFor(`document.querySelector('[data-role=exercise-open] a')`, 6000);
+    ok("Grammar Notebook lists the unfinished exercise: 'Làm tiếp · 3/6 câu'", (await text("[data-role=exercise-open] a")) === "Làm tiếp · 3/6 câu", await text("[data-role=exercise-open] a"));
+    await realClick("[data-role=exercise-open] a");
+    await waitFor(`document.querySelector('[data-role=ex-progress]')`, 6000);
+    ok("continuing starts at question 4 of 6 (the rewrite)", (await progress()) === "Câu 4/6" && (await text("[data-role=ex-kind]")) === "Viết lại câu");
+
+    // Q4 rewrite: no match -> the learner marks it
+    await typeText("Last week I went to Berlin."); await pressEnter(); await sleep(400);
+    ok("Q4 rewrite that does not match: shows the model answer and asks Đúng ý / Sai; the next button waits", (await verdict()) === "Chưa khớp đáp án mẫu." && (await text("[data-role=ex-feedback]")).includes("I visited Berlin last week.") && await ev(`document.querySelector('[data-role=ex-next]').disabled`) && (await count("[data-role=ex-self-yes]")) === 1 && (await count("[data-role=ex-self-no]")) === 1);
+    await ev(`document.activeElement.blur()`); await pressEnter(); await sleep(200); // Enter on the page (not on a button)
+    ok("Enter does not skip a question that is waiting for the learner's mark", (await progress()) === "Câu 4/6");
+    await realClick("[data-role=ex-self-yes]");
+    const q4 = (await dbRaw("exercises"))[0].items[3];
+    ok("'Đúng ý': right, marked selfGraded, stored", (await verdict()).includes("Đúng") && (await verdict()).includes("tự chấm") && q4.correct === true && q4.selfGraded === true && !(await ev(`document.querySelector('[data-role=ex-next]').disabled`)));
+    await pressEnter(); await sleep(300);
+
+    // Q5 fill: wrong, hint, "Tôi đúng ý"
+    await typeText("travelled"); await pressEnter(); await sleep(400);
+    ok("Q5 wrong (an answer Claude did not list): 'Sai', the right answer, the explanation is hidden until 'Gợi ý'", (await verdict()) === "Sai" && (await text("[data-role=ex-feedback]")).includes("went") && await ev(`document.querySelector('[data-role=ex-explain]').hidden`) && (await count("[data-role=ex-override]")) === 1);
+    await realClick("[data-role=ex-hint]");
+    ok("'Gợi ý' shows the explanation", !(await ev(`document.querySelector('[data-role=ex-explain]').hidden`)) && (await text("[data-role=ex-explain]")) === "Giải thích.");
+    await realClick("[data-role=ex-override]");
+    const q5 = (await dbRaw("exercises"))[0].items[4];
+    ok("'Tôi đúng ý' turns it into right, selfGraded, stored; the button is gone", (await verdict()).includes("Đúng") && (await verdict()).includes("tự chấm") && q5.correct === true && q5.selfGraded === true && q5.userAnswer === "travelled" && (await count("[data-role=ex-override]")) === 0);
+    await pressEnter(); await sleep(300);
+
+    // Q6 choose: wrong
+    await pressDigit(1); await pressEnter(); await sleep(400);
+    ok("Q6 choose wrong: 'Sai', the right option is marked, no 'Tôi đúng ý' for a multiple choice, 'Gợi ý' is there", (await verdict()) === "Sai" && await ev(`document.querySelectorAll('[data-role=ex-option]')[1].dataset.state === 'right' && document.querySelectorAll('[data-role=ex-option]')[0].dataset.state === 'wrong'`) && (await count("[data-role=ex-override]")) === 0 && (await count("[data-role=ex-hint]")) === 1);
+    ok("the last question offers 'Xem kết quả'", (await text("[data-role=ex-next]")).startsWith("Xem kết quả"));
+    await shot(mobile ? "ex-m-feedback.png" : "ex-d-feedback.png");
+    await pressEnter(); await sleep(900);
+
+    // result
+    ok("result: 'Đúng 5/6'", await waitFor(`document.querySelector('[data-role=ex-score]')`, 6000) && (await text(".ex-score-value")) === "Đúng 5/6", await text(".ex-score-value"));
+    ok("per mistake: 3/3 for the first, 2/3 for the second", (await ev(`[...document.querySelectorAll('.ex-result-card')].map((c) => c.dataset.id + ':' + c.dataset.score).join(',')`)) === "e1:3/3,e2:2/3");
+    ok("3/3 -> suggests 'Đánh dấu đã khắc phục' (it is not done by itself); 2/3 -> says it will be prioritised in the warm-up", (await count("[data-role=ex-mark-fixed]")) === 1 && (await text(".ex-result-card[data-id=e1]")).includes("Bạn làm đúng cả 3 câu") && (await text(".ex-result-card[data-id=e2] [data-role=ex-priority]")).includes("khởi động 15'"));
+    const done1 = (await dbRaw("exercises"))[0];
+    ok("stored: doneAt, score 5, every question with userAnswer / correct / selfGraded", !!done1.doneAt && done1.score === 5 && done1.items.every((i) => i.userAnswer !== null && typeof i.correct === "boolean") && done1.items.filter((i) => i.selfGraded).length === 2);
+    const errsAfter = await dbLive("errors");
+    ok("the status is untouched until the learner presses; the second mistake got warm-up priority 1 (one wrong answer), the first 0", errsAfter.find((e) => e.id === "e1").status === "new" && (errsAfter.find((e) => e.id === "e1").warmupPriority ?? 0) === 0 && errsAfter.find((e) => e.id === "e2").warmupPriority === 1 && errsAfter.find((e) => e.id === "e2").status === "practicing");
+    await shot(mobile ? "ex-m-result.png" : "ex-d-result.png");
+    if (mobile) ok("390px: the result has no overflow", await noOverflow());
+    await realClick("[data-role=ex-mark-fixed]");
+    ok("pressing it marks the mistake fixed (and says so)", await waitFor(`document.querySelector('[data-role=ex-fixed-done]')`, 4000) && (await dbLive("errors")).find((e) => e.id === "e1").status === "fixed" && (await count("[data-role=ex-mark-fixed]")) === 0);
+
+    // Grammar Notebook shows the result
+    await realClick("[data-role=ex-to-notebook]");
+    await waitFor(`document.querySelectorAll('.error-card').length === 3`, 6000);
+    ok("cards: 'Đã luyện 1 lần · lần cuối 3/3' and 'Đã khắc phục' for the first; '... lần cuối 2/3' for the second; none for the third", (await text(".error-card[data-id=e1] [data-role=practice-stat]")) === "Đã luyện 1 lần · lần cuối 3/3" && (await text(".error-card[data-id=e2] [data-role=practice-stat]")) === "Đã luyện 1 lần · lần cuối 2/3" && (await count(".error-card[data-id=e3] [data-role=practice-stat]")) === 0 && (await text(".error-card[data-id=e1] .status-tag")) === "Đã khắc phục");
+    ok("the column lists the finished exercise under 'Gần đây' ('đúng 5/6') and nothing is left unfinished", (await text("[data-role=exercise-recent]")).includes("2 lỗi · đúng 5/6") && (await count("[data-role=exercise-open]")) === 0, await text("[data-role=exercise-recent]"));
+    await realClick("[data-role=exercise-recent] a");
+    ok("opening a finished exercise shows its result again and changes nothing", await waitFor(`document.querySelector('[data-role=ex-score]')`, 6000) && (await text(".ex-score-value")) === "Đúng 5/6" && (await dbRaw("exercises"))[0].doneAt === done1.doneAt && (await dbLive("errors")).find((e) => e.id === "e2").warmupPriority === 1 && (await count("[data-role=ex-mark-fixed]")) === 0);
+
+    // the warm-up uses the priority, and asking the mistake resets it
+    const queue = await ev(`(async () => { const m = await import('/js/services/warmup.js'); const all = await new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('errors').objectStore('errors').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; }); return m.pickErrorQueue(all).map((e) => e.id); })()`);
+    ok("warm-up queue: the mistake got wrong in the exercise (2 occurrences) comes before 'Many peoples' (5), the fixed one is not there", queue.join() === "e2,e3", queue.join());
+    await ev(`import('/js/services/warmup-ops.js').then((m) => m.reviewError('e2', true))`);
+    await sleep(500);
+    ok("after the warm-up asked it, its priority is back to 0", ((await dbLive("errors")).find((e) => e.id === "e2").warmupPriority ?? 0) === 0);
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);  } else if (scenario === "layout") {
     for (const [w, h, n] of [[1280, 800, "d"], [900, 800, "t"], [390, 800, "m"]]) {
       await go(BASE + "#/", w, h);

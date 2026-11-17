@@ -165,6 +165,10 @@ Tổng kết: số từ nhớ (x/y), số lỗi sửa đúng (x/5), danh sách t
 - Chip 10 nhóm kèm số; lọc trạng thái Mới / Đang luyện / Đã khắc phục / Lặp lại; sắp xếp theo số lần lặp hoặc gần nhất.
 - Thẻ lỗi: ×N, nhóm, trạng thái, nguồn + ngày; câu sai → câu đúng; mở rộng: quy tắc tiếng Việt, ví dụ đúng, lịch sử các lần gặp (link về test/bài viết/khởi động).
 - Cột phải: bài tập Claude tạo từ lỗi đã chọn (điền/sửa/viết lại), chấm, đề xuất "Đánh dấu đã khắc phục".
+- **Bước 8c (chế độ copy/paste):** chọn 1 đến 5 lỗi đã hoàn thiện (có signature thật và câu sửa) rồi "Tạo bài tập"; không chọn gì thì nút đề xuất 5 lỗi ưu tiên theo 6.4 trong số lỗi đủ điều kiện. Sao chép prompt → Mở Claude → dán → Đọc JSON; bài tập được lưu ngay khi JSON hợp lệ (store `exercises`, chưa có `doneAt`) rồi mở màn `#/errors/exercise/<id>`, nên thoát giữa chừng thì làm tiếp được ("Đang làm dở" ở cột phải).
+- Mỗi lỗi đúng 3 câu, trộn các dạng: `fill` (điền chỗ trống ___), `correct` (sửa câu có lỗi), `choose` (3–4 lựa chọn), `rewrite` (viết lại theo gợi ý). Thiếu (<3) thì từ chối; thừa (>3) thì giữ 3 câu đầu (ưu tiên đủ dạng khác nhau) và báo nhẹ. Câu do Claude soạn; việc không dùng lại câu sai của người học chỉ được dặn trong prompt, không từ chối JSON vì lý do đó.
+- Làm từng câu một (Enter để nộp, Enter để sang câu, phím 1–4 cho `choose`). Chấm tại máy sau khi chuẩn hoá (hoa/thường, khoảng trắng, dấu nháy đơn thẳng và cong, dấu câu cuối) so với `answer` và `acceptedAnswers`. `correct`: so cả câu; gõ riêng phần đã sửa cũng được nếu khớp đoạn khác biệt giữa câu sai và đáp án. Không khớp: `fill` và `correct` tính Sai nhưng có nút "Tôi đúng ý" để tự đổi thành Đúng (`selfGraded`), vì `acceptedAnswers` có thể thiếu biến thể đúng; `rewrite` hiện đáp án mẫu để chọn "Đúng ý" / "Sai"; `choose` không có tự chấm. Sau khi trả lời có nút "Gợi ý" (hoặc "Xem giải thích" khi đúng) mở `explanationVi`.
+- Kết quả: điểm từng lỗi (X/3). Lỗi đúng cả 3 câu và chưa khắc phục thì gợi ý "Đánh dấu đã khắc phục" (người học bấm, app không tự đổi). Lỗi có câu sai được ưu tiên trong khởi động 15 phút (6.4). Thẻ lỗi hiện "Đã luyện N lần · lần cuối X/3". `exercise_grade` (nhờ Claude chấm câu viết lại) là tuỳ chọn, chưa làm.
 - **Bắt buộc sửa:** bỏ "GRA Milestone Achieved", "Ví dụ chuẩn Band 8.0+", "Trí tuệ nhân tạo Claude".
 
 ### 5.9 Luyện đề trong app
@@ -220,7 +224,7 @@ Bảng là ước lượng phổ biến; Cambridge điều chỉnh nhẹ theo t�
 - Dạng bài cần dữ liệu: hộp 3 cần ≥3 từ khác có nghĩa; hộp 4 cần câu ngữ cảnh; hộp 5 cần collocation. Thiếu dữ liệu thì lùi về dạng thấp hơn.
 
 ### 6.4 Chọn 5 lỗi cho khởi động
-Trạng thái ≠ Đã khắc phục, sắp xếp `occurrences` giảm dần rồi `lastSeen` mới nhất. Tự chấm Đúng 3 lần liên tiếp (qua các buổi) → đề xuất "Đánh dấu đã khắc phục". Lỗi đã khắc phục xuất hiện lại trong bài viết mới → **Lặp lại**.
+Trạng thái ≠ Đã khắc phục, sắp xếp `warmupPriority` giảm dần (lỗi vừa làm sai trong bài tập, Bước 8c: bằng số câu sai, về 0 khi lỗi đã được hỏi trong khởi động hoặc đã đánh dấu khắc phục), rồi `occurrences` giảm dần, rồi `lastSeen` mới nhất. Tự chấm Đúng 3 lần liên tiếp (qua các buổi) → đề xuất "Đánh dấu đã khắc phục". Lỗi đã khắc phục xuất hiện lại trong bài viết mới → **Lặp lại**.
 
 ### 6.5 Chống trùng
 - Từ: khoá `lemma + pos` (chữ thường, bỏ khoảng trắng thừa). Trùng → thêm ngữ cảnh mới vào `contexts[]`, không tạo thẻ mới; Ghi nhanh chưa có pos thì khớp theo lemma, hỏi gộp khi có nhiều pos.
@@ -265,11 +269,13 @@ Mọi bản ghi: `id` (UUID), `createdAt`, `updatedAt`, `deleted` (tombstone cho
 | `tests` | key "15-3", book, test, pdfUrl, audioUrls[], pinned, note | key |
 | `submissions` | kind (writing/speaking), source {book,test,task/part}, taskType, prompt, text, wordCount, durationSec, status (draft/analyzed), result (JSON Claude), bands {overall,c1..c4}, aiMode | idx kind, createdAt |
 | `sessions` | date, warmup {vocabTotal, vocabCorrect, errorsTotal, errorsCorrect, wrongVocabIds[]}, attemptIds[] | idx date |
-| `exercises` | errorIds[], items[] {kind, question, answer, userAnswer, correct}, score, doneAt | idx errorIds (multiEntry) |
+| `exercises` | errorIds[], items[] {id, errorId, kind (fill/correct/choose/rewrite), question, options? (choose), answer, acceptedAnswers[], explanationVi, userAnswer, correct (true/false/null), selfGraded}, score (số câu đúng), doneAt (null cho tới khi làm xong), aiMode | idx errorIds (multiEntry) |
 | `notebooks` | group (6 nhóm), name, notebookUrl, sourceCount, purpose | **unique** group |
 | `notes` | text, example, citation, origin (notebooklm/manual), links[] {type, id} | idx links (multiEntry) |
 
 So với bản thiết kế: bỏ `materials` (Learning Materials đã gộp vào Cambridge Practice, nguồn đã có trong `source`); thêm `attempts`, `tests`, `sessions`; `vocab.examples` đổi thành `contexts[]` có nguồn.
+
+`errors` bổ sung (Bước 8c): `warmupPriority` (số nguyên, tuỳ chọn). Khi gộp lỗi, `errorIds` và `items[].errorId` của `exercises` được trỏ lại thẻ giữ lại.
 
 `submissions` bổ sung: `doneAt` (bài Writing đã bấm Xong; `status` vẫn `draft` cho tới khi Claude chấm), `source.task` (1 hoặc 2). `attempts.submissionId` trỏ tới bài Writing đã viết trong màn Luyện đề.
 
@@ -319,6 +325,8 @@ Ví dụ `writing_task2`:
 }
 ```
 Tác vụ phân tích (Bước 8b): `bands` có `overall` và đúng 4 tiêu chí của tác vụ — `writing_task1`: TA, CC, LR, GRA; `writing_task2`: TR, CC, LR, GRA; `speaking`: FC, LR, GRA, P — mỗi band là số từ 0 đến 9, bước 0.5; `criteriaFeedbackVi` có đủ 4 khoá. `errors[]` như ví dụ trên (`start`/`end` tuỳ chọn và không được tin; `severity` high, medium hoặc low, mặc định medium; `signature` bắt đầu bằng `type:`). `minimalCorrectedText`, `band7Text` bắt buộc; `vocabularySuggestions[]` có thể rỗng. `writing_task1` thêm `dataAccuracyChecked` (boolean, bắt buộc). Kiểm tra ở `parseAnalysisResult` (`js/ai/schema.js`); JSON sai thì báo tiếng Việt và không lưu gì.
+
+Tác vụ `exercise_generate` (Bước 8c), cùng khung `{ "schemaVersion": 1, "task": "exercise_generate", "items": [...] }`: mỗi câu `{ id, errorId, kind, question, options[] (chỉ choose, 3–4 lựa chọn khác nhau), answer, acceptedAnswers[], explanationVi }`; `errorId` phải là một lỗi đã gửi; đúng 3 câu cho mỗi lỗi (thừa thì giữ 3 câu đầu, ưu tiên đủ dạng); `fill` có chỗ trống `___` trong `question`; `choose` có `answer` nằm trong `options`; `correct` có `question` là một câu chứa lỗi và `answer` là cả câu đã sửa tối thiểu. Kiểm tra ở `parseExerciseResult` (`js/ai/schema.js`); JSON sai thì báo tiếng Việt và không lưu gì. Tác vụ `exercise_grade` là tuỳ chọn, chưa làm.
 
 Tác vụ enrich (Bước 8a), cùng khung `{ "schemaVersion": 1, "task": ..., "items": [...] }`, mỗi mục giữ nguyên `id` đã gửi:
 ```json
@@ -377,7 +385,7 @@ Quy tắc chung: số, nút, tag dùng `white-space: nowrap`; tiêu đề thẻ 
 | 7 | Đồng bộ Google Drive | Sửa trên iPhone, mở Windows thấy trong ≤ 1 phút |
 | 8a | AI copy/paste (2a): "Hoàn thiện với Claude" cho từ và lỗi ghi nhanh (mục 6.6, tác vụ `vocab_enrich`, `error_enrich`) | Ghi 3 từ chỉ có chữ + 1 lỗi → sao chép prompt → dán JSON mẫu → duyệt, sửa, tick → lưu: thẻ có IPA, nghĩa, collocation, lỗi có nhóm + signature; trùng thì gộp, giữ box Leitner của thẻ cũ; JSON sai thì báo và không lưu gì |
 | 8b | AI copy/paste (2a): Writing & Speaking (mục 5.6): `writing_task1`, `writing_task2`, `speaking`; band tổng app tự tính lại từ 4 tiêu chí; khay lỗi / từ lưu và chống trùng như 8a | Viết một bài Task 2, sao chép prompt sang claude.ai, dán JSON về, xem 3 tab, lưu lỗi và từ → thấy trong Grammar Notebook, Vocabulary Bank và ô W trên ma trận; JSON sai thì báo và không lưu gì |
-| 8c | AI copy/paste (2a): tạo bài tập từ lỗi (`exercise_generate`, `exercise_grade`) | Chọn lỗi → bài tập → dán JSON → chấm và cập nhật sổ lỗi |
+| 8c | AI copy/paste (2a): tạo bài tập từ lỗi (`exercise_generate`; `exercise_grade` tuỳ chọn, chưa làm) | Chọn 2 lỗi thật → sao chép prompt sang claude.ai → dán JSON → làm hết bài (có đúng, sai, tự chấm) → thấy kết quả và trạng thái lỗi cập nhật (số lần luyện, đề xuất khắc phục, ưu tiên khởi động) |
 | 9 | AI qua proxy (2b) | Không có key trong mã nguồn; chấm Task 2 < 60s |
 
 Mỗi bước: chạy thử trên Chrome desktop + Safari iOS, rồi mới sang bước sau.

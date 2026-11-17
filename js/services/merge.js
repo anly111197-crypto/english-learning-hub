@@ -183,7 +183,8 @@ export function mergeData(local, incoming, { now = Date.now() } = {}) {
     if (target) rec.itemId = remap(target, rec.itemId);
   }
   for (const rec of result.exercises) {
-    if (Array.isArray(rec.errorIds)) rec.errorIds = rec.errorIds.map((id) => remap("errors", id));
+    if (Array.isArray(rec.errorIds)) rec.errorIds = [...new Set(rec.errorIds.map((id) => remap("errors", id)))];
+    if (Array.isArray(rec.items)) for (const it of rec.items) if (it && it.errorId) it.errorId = remap("errors", it.errorId); // the questions too (step 8c)
   }
   for (const rec of result.notes) {
     if (Array.isArray(rec.links)) {

@@ -62,12 +62,13 @@ export function mergeErrorFields(keep, drop) {
 
 // ---- Warm-up selection (spec 6.4) ----
 
-// Up to n errors that are not fixed: most occurrences first, then the most recently seen.
+// Up to n errors that are not fixed: the ones the learner got wrong in an exercise first (`warmupPriority`, spec 6.4),
+// then most occurrences, then the most recently seen.
 // requireCorrection: only errors that already have a correct sentence (the warm-up needs one to check against).
 export function pickWarmupErrors(errors, n = 5, { requireCorrection = false } = {}) {
   return errors
     .filter((e) => isLive(e) && e.status !== "fixed" && (!requireCorrection || String(e.corrected ?? "").trim() !== ""))
-    .sort((a, b) => num(b.occurrences) - num(a.occurrences) || String(b.lastSeen ?? "").localeCompare(String(a.lastSeen ?? "")) || byId(a, b))
+    .sort((a, b) => num(b.warmupPriority) - num(a.warmupPriority) || num(b.occurrences) - num(a.occurrences) || String(b.lastSeen ?? "").localeCompare(String(a.lastSeen ?? "")) || byId(a, b))
     .slice(0, n);
 }
 

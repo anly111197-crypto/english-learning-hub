@@ -2,10 +2,11 @@
 import { list, get, put, query, softDelete } from "./repo.js";
 import { STATUSES, mergeErrorFields } from "./errors.js";
 import { repointNoteLinks } from "./notebook-ops.js";
+import { remapExerciseErrorId } from "./exercise-remap.js";
 
 export async function loadErrorData() {
-  const [errors, occurrences, notes, notebooks] = await Promise.all([list("errors"), list("occurrences"), list("notes"), list("notebooks")]);
-  return { errors, occurrences: occurrences.filter((o) => o.itemType === "error"), notes, notebooks };
+  const [errors, occurrences, notes, notebooks, exercises] = await Promise.all([list("errors"), list("occurrences"), list("notes"), list("notebooks"), list("exercises")]);
+  return { errors, occurrences: occurrences.filter((o) => o.itemType === "error"), notes, notebooks, exercises };
 }
 
 // fields: corrected, type, explanationVi, correctExample, status. The wrong sentence is not editable: it is how
@@ -46,7 +47,7 @@ export async function mergeErrors(keepId, dropId) {
   const merged = await put("errors", mergeErrorFields(keep, drop));
   for (const occ of await query("occurrences", "itemId", dropId)) await put("occurrences", { ...occ, itemId: keepId });
   for (const ex of await query("exercises", "errorIds", dropId)) {
-    await put("exercises", { ...ex, errorIds: [...new Set(ex.errorIds.map((id) => (id === dropId ? keepId : id)))] });
+    await put("exercises", remapExerciseErrorId(ex, dropId, keepId));
   }
   await repointNoteLinks("error", dropId, keepId);
   await softDelete("errors", dropId);

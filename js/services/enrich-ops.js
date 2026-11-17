@@ -4,6 +4,7 @@ import { lemmaPosKey } from "./dedupe.js";
 import { mergeVocab } from "./vocab-ops.js";
 import { mergeErrors } from "./error-ops.js";
 import { repointNoteLinks } from "./notebook-ops.js";
+import { remapExerciseErrorId } from "./exercise-remap.js";
 import {
   pickBatch, pendingCount, vocabPromptItems, errorPromptItems, knownSignatures,
   buildVocabRows, buildErrorRows, findVocabConflict, findErrorConflict, vocabFieldsToSave, errorFieldsToSave,
@@ -82,7 +83,7 @@ export async function saveErrorRow(row) {
   if (tomb) {
     const saved = await put("errors", { ...withoutIdentity(cur), ...patch, enriched: true });
     for (const ex of await query("exercises", "errorIds", cur.id)) {
-      await put("exercises", { ...ex, errorIds: [...new Set(ex.errorIds.map((id) => (id === cur.id ? saved.id : id)))] });
+      await put("exercises", remapExerciseErrorId(ex, cur.id, saved.id));
     }
     await repoint("errors", "error", cur.id, saved.id);
     return { status: "enriched" };

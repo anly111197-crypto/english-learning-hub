@@ -2,7 +2,7 @@
 // Only what the learner typed goes in (words, their own context sentences, wrong sentences, existing signatures):
 // no book/test names, no learning progress.
 import { ERROR_TYPES } from "../services/taxonomy.js";
-import { AI_SCHEMA_VERSION, POS_VALUES, MAX_ENRICH_BATCH, CRITERIA, CRITERIA_LABELS, ANALYSIS_TASKS } from "./schema.js";
+import { AI_SCHEMA_VERSION, POS_VALUES, MAX_ENRICH_BATCH, CRITERIA, CRITERIA_LABELS, ANALYSIS_TASKS, ITEMS_PER_ERROR, MAX_EXERCISE_ERRORS } from "./schema.js";
 
 const MAX_SIGNATURES = 200;
 const json = (value) => JSON.stringify(value, null, 2);
@@ -167,5 +167,52 @@ export function buildAnalysisPrompt(task, input) {
   lines.push(`Task: ${meta.join(" · ")}`);
   lines.push(`Question given to the learner:\n${String(input.questionText ?? "").trim() || "(not provided)"}`);
   lines.push(`Learner's ${unit} (${Number(input.wordCount) || 0} words), between the markers:`, "<<<BEGIN>>>", String(input.text).trim(), "<<<END>>>");
+  return lines.join("\n");
+}
+// ---- Exercises from mistakes (spec 5.8, 7.3) ----
+
+// items: [{ errorId, original, corrected, type, signature, ruleVi, correctExample }]. Only what the learner wrote
+// and the rule of the mistake: no book or test names, no progress.
+export function buildExercisePrompt(items) {
+  if (!Array.isArray(items) || items.length === 0) throw new Error("Chưa chọn lỗi nào để tạo bài tập.");
+  if (items.length > MAX_EXERCISE_ERRORS) throw new Error(`Mỗi bài tập chỉ có tối đa ${MAX_EXERCISE_ERRORS} lỗi.`);
+  const input = items.map((e) => ({
+    errorId: e.errorId, learnerWrongSentence: e.original, correctedSentence: e.corrected, type: e.type, signature: e.signature,
+    ...(e.ruleVi ? { ruleVi: e.ruleVi } : {}), ...(e.correctExample ? { correctExample: e.correctExample } : {}),
+  }));
+  const total = items.length * ITEMS_PER_ERROR;
+  const lines = [
+    "You are an English teacher for a Vietnamese learner preparing for IELTS Academic (target band 6.5-7.0).",
+    "Reply with ONE JSON object and nothing else: no greeting, no explanation outside the JSON. A ```json code block is fine.",
+    "Write explanations in Vietnamese; keep English terms in English.",
+    "",
+    `TASK exercise_generate: write practice questions for ${items.length} grammar mistake${items.length === 1 ? "" : "s"} the learner made. ` +
+      `Write EXACTLY ${ITEMS_PER_ERROR} questions for each mistake (${total} in all), each practising the same rule as that mistake.`,
+    "Mix the kinds: for each mistake use at least two different kinds. The kinds are:",
+    '- "fill": a sentence with ONE blank written as ___ (three underscores); "answer" is the word or words that fill it.',
+    '- "correct": "question" is ONE sentence that contains the same kind of mistake (just the sentence, no instruction); "answer" is the whole sentence with the minimal correction.',
+    '- "choose": multiple choice; "options" has 3 or 4 different choices and "answer" is exactly one of them.',
+    '- "rewrite": "question" is the instruction plus the sentence to rewrite (for example a hint to use the rule); "answer" is a model rewrite.',
+    "",
+    "Rules for every question:",
+    "- Write NEW sentences on IELTS Academic topics (education, environment, technology, health, work, society). Do NOT reuse the learner's own wrong sentence and do not copy any book or exam. Do not mention Cambridge.",
+    '- Each question needs exactly one clearly correct "answer". Put other equally correct ways to answer in "acceptedAnswers" (an array, empty if there are none): other correct words for a blank, other correct full sentences, contractions and so on.',
+    '- "explanationVi": one or two short Vietnamese sentences explaining the rule that decides the answer.',
+    '- "id": a short unique id for each question (for example "q1", "q2"). "errorId": copy the errorId of the mistake the question belongs to.',
+    "",
+    "Answer format:",
+    json({
+      schemaVersion: AI_SCHEMA_VERSION,
+      task: "exercise_generate",
+      items: [
+        { id: "q1", errorId: "<errorId>", kind: "fill", question: "Technology ___ many aspects of modern life.", answer: "has changed", acceptedAnswers: ["has transformed"], explanationVi: "..." },
+        { id: "q2", errorId: "<errorId>", kind: "choose", question: "Students need ___ to succeed.", options: ["advices", "advice", "an advice"], answer: "advice", acceptedAnswers: [], explanationVi: "..." },
+        { id: "q3", errorId: "<errorId>", kind: "correct", question: "The information are useful for researchers.", answer: "The information is useful for researchers.", acceptedAnswers: [], explanationVi: "..." },
+      ],
+    }),
+    "",
+    `Mistakes (${items.length}):`,
+    json(input),
+  ];
   return lines.join("\n");
 }

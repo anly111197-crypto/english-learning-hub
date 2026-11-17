@@ -30,7 +30,7 @@ export async function reviewError(id, correct) {
   const current = await get("errors", id);
   if (!current) throw new Error("Lỗi này không còn trong sổ.");
   const fields = applyErrorResult(current, correct);
-  await put("errors", { ...current, ...fields });
+  await put("errors", { ...current, ...fields, warmupPriority: 0 }); // asked now: the boost from an exercise has done its job
   return { ...fields, original: current.original, corrected: current.corrected };
 }
 

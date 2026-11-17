@@ -279,3 +279,111 @@ export function parseAnalysisResult(task, pasted) {
   }
   return { task, bands, criteriaFeedbackVi, errors, minimalCorrectedText, band7Text, vocabularySuggestions, dataAccuracyChecked };
 }
+// ---- Exercises from mistakes (step 8c, spec 5.8 and 7.3) ----
+
+export const EXERCISE_KINDS = ["fill", "correct", "choose", "rewrite"];
+export const ITEMS_PER_ERROR = 3;
+export const MAX_EXERCISE_ERRORS = 5;
+
+const normKey = (s) => String(s ?? "").normalize("NFC").replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim().toLowerCase();
+
+function checkExerciseItem(raw, sentIds) {
+  const problems = [];
+  const id = text(raw.id);
+  if (!id) problems.push("thiếu id");
+  const errorId = text(raw.errorId);
+  if (!errorId) problems.push("thiếu errorId");
+  else if (!sentIds.has(errorId)) problems.push(`errorId "${errorId}" không khớp lỗi nào trong prompt đã gửi`);
+  const kind = text(raw.kind).toLowerCase();
+  if (!EXERCISE_KINDS.includes(kind)) problems.push(`kind "${text(raw.kind)}" không hợp lệ (${EXERCISE_KINDS.join(", ")})`);
+  const question = typeof raw.question === "string" ? raw.question.trim() : "";
+  if (!question) problems.push("thiếu question");
+  let answer = typeof raw.answer === "string" ? raw.answer.trim() : "";
+  if (!answer) problems.push("thiếu answer");
+  const explanationVi = text(raw.explanationVi);
+  if (!explanationVi) problems.push("thiếu explanationVi");
+  let acceptedAnswers = [];
+  if (raw.acceptedAnswers !== undefined && raw.acceptedAnswers !== null) {
+    if (!Array.isArray(raw.acceptedAnswers) || raw.acceptedAnswers.some((a) => typeof a !== "string")) problems.push("acceptedAnswers phải là một danh sách chuỗi");
+    else acceptedAnswers = raw.acceptedAnswers.map((a) => a.trim()).filter(Boolean);
+  }
+  let options = [];
+  if (kind === "fill" && question && !/_{3,}/.test(question)) problems.push("câu điền từ (fill) cần có chỗ trống ___ trong question");
+  if (kind === "choose") {
+    if (!Array.isArray(raw.options) || raw.options.some((o) => typeof o !== "string" || !o.trim())) {
+      problems.push("câu trắc nghiệm (choose) cần options là danh sách 3 hoặc 4 chuỗi");
+    } else {
+      options = raw.options.map((o) => o.trim());
+      if (options.length < 3 || options.length > 4) problems.push(`choose cần 3 hoặc 4 lựa chọn (có ${options.length})`);
+      else if (new Set(options.map(normKey)).size !== options.length) problems.push("options có hai lựa chọn giống nhau");
+      else if (answer) {
+        const hit = options.find((o) => normKey(o) === normKey(answer));
+        if (!hit) problems.push(`answer "${answer}" không nằm trong options`);
+        else answer = hit; // the answer is stored exactly as the option is shown
+      }
+    }
+  }
+  if (problems.length) return { problems };
+  return { item: { id, errorId, kind, question, ...(kind === "choose" ? { options } : {}), answer, acceptedAnswers, explanationVi } };
+}
+
+// Keep 3 of the items of one mistake: prefer different kinds first, then fill up in the order given; the kept items stay in
+// the order Claude gave them.
+export function pickThreePerError(items, n = ITEMS_PER_ERROR) {
+  if (items.length <= n) return items;
+  const chosen = new Set();
+  const kinds = new Set();
+  items.forEach((it, i) => { if (chosen.size < n && !kinds.has(it.kind)) { kinds.add(it.kind); chosen.add(i); } });
+  items.forEach((_, i) => { if (chosen.size < n) chosen.add(i); });
+  return items.filter((_, i) => chosen.has(i));
+}
+
+// sent: [{ errorId, label }] (label = what to call the mistake in messages). Returns { items, notes }.
+// Fewer than 3 items for a mistake, an unknown errorId, a missing answer, a "choose" whose answer is not among the
+// options... are errors (nothing is saved). More than 3 for a mistake is not: the first 3 are kept (different kinds
+// first) and a note says so.
+export function parseExerciseResult(pasted, sent) {
+  const json = extractJson(pasted);
+  if (json.schemaVersion !== undefined && json.schemaVersion !== AI_SCHEMA_VERSION) {
+    throw new AiFormatError(`schemaVersion ${json.schemaVersion} không đúng (cần ${AI_SCHEMA_VERSION}).`);
+  }
+  if (json.task !== "exercise_generate") {
+    throw new AiFormatError(`JSON này là của tác vụ "${json.task ?? "không rõ"}", không phải "exercise_generate". Có thể bạn đã dán nhầm câu trả lời. Không có gì được lưu.`);
+  }
+  if (!Array.isArray(json.items) || json.items.length === 0) throw new AiFormatError('JSON thiếu danh sách "items" hoặc danh sách đang trống. Không có gì được lưu.');
+
+  const sentIds = new Set(sent.map((s) => s.errorId));
+  const problems = [];
+  const items = [];
+  const seen = new Set();
+  json.items.forEach((raw, i) => {
+    const label = `Câu ${i + 1}`;
+    if (!isObject(raw)) { problems.push(`${label} không phải một đối tượng.`); return; }
+    const res = checkExerciseItem(raw, sentIds);
+    if (res.problems) { problems.push(`${label}${raw.id ? ` (id ${text(raw.id)})` : ""}: ${res.problems.join("; ")}.`); return; }
+    if (seen.has(res.item.id)) { problems.push(`${label}: id "${res.item.id}" bị lặp.`); return; }
+    seen.add(res.item.id);
+    items.push(res.item);
+  });
+
+  const kept = [];
+  const notes = [];
+  if (!problems.length) {
+    for (const s of sent) {
+      const mine = items.filter((it) => it.errorId === s.errorId);
+      if (mine.length < ITEMS_PER_ERROR) problems.push(`Lỗi "${s.label}" chỉ có ${mine.length} câu, cần đủ ${ITEMS_PER_ERROR} câu cho mỗi lỗi.`);
+      else if (mine.length > ITEMS_PER_ERROR) {
+        notes.push(`Lỗi "${s.label}": Claude gửi ${mine.length} câu, app giữ ${ITEMS_PER_ERROR} câu đầu (ưu tiên đủ dạng khác nhau).`);
+        kept.push(...pickThreePerError(mine));
+      } else kept.push(...mine);
+    }
+  }
+  if (problems.length) {
+    const shown = problems.slice(0, MAX_PROBLEMS_SHOWN).join(" ");
+    const more = problems.length > MAX_PROBLEMS_SHOWN ? ` (và ${problems.length - MAX_PROBLEMS_SHOWN} lỗi nữa)` : "";
+    throw new AiFormatError(`${shown}${more} Không có gì được lưu.`);
+  }
+  // keep Claude's order across mistakes
+  const keptIds = new Set(kept.map((it) => it.id));
+  return { items: items.filter((it) => keptIds.has(it.id)), notes };
+}
