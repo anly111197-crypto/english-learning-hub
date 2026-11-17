@@ -22,7 +22,7 @@ const byCreated = (a, b) => ts(a.createdAt) - ts(b.createdAt) || String(a.id).lo
 // Check a parsed backup file and return its data with every store present and derived fields filled.
 export function validateBackup(json) {
   if (!json || typeof json !== "object" || json.app !== APP_ID) {
-    throw new BackupError("Đây không phải tệp sao lưu của English Learning Hub.");
+    throw new BackupError("Đây không phải tệp sao lưu của IELTS 7.0.");
   }
   if (!Number.isInteger(json.schemaVersion) || json.schemaVersion < 1) {
     throw new BackupError("Tệp sao lưu thiếu schemaVersion hợp lệ.");

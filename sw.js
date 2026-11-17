@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v19";
+const CACHE_VERSION = "elh-v20";
 
 // js/vendor/pdfjs/wasm/ and js/vendor/pdfjs/standard_fonts/ (~2.2 MB: JPX / JBIG2 scans, colour profiles, standard fonts) are NOT in
 // APP_SHELL on purpose: the fetch handler below caches them the first time PDF.js asks for them.

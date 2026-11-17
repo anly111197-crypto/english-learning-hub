@@ -76,7 +76,7 @@ function resolve() {
   current = isObject ? view : null;
 
   const title = typeof route.title === "function" ? route.title(params) : route.title;
-  document.title = title + " · English Learning Hub";
+  document.title = title + " · IELTS 7.0";
   document.body.dataset.route = route.key;
   for (const link of document.querySelectorAll("[data-nav]")) {
     if (link.dataset.nav === route.nav) link.setAttribute("aria-current", "page");

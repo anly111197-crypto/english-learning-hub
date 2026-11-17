@@ -342,7 +342,7 @@ async function switchTask(task) {
     if (s !== x) return;
     await loadTask(task);
     s.refs.title.textContent = `Cam ${s.book} · Test ${s.test} · ${skillTitle(s)}`;
-    document.title = `Luyện Cam ${s.book} Test ${s.test} · ${skillTitle(s)} · English Learning Hub`;
+    document.title = `Luyện Cam ${s.book} Test ${s.test} · ${skillTitle(s)} · IELTS 7.0`;
     renderWriting();
     renderClock();
   } finally {
