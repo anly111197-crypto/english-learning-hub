@@ -28,7 +28,7 @@ export function validateBackup(json) {
     throw new BackupError("Tệp sao lưu thiếu schemaVersion hợp lệ.");
   }
   if (json.schemaVersion > SCHEMA_VERSION) {
-    throw new BackupError(`Tệp sao lưu có schemaVersion ${json.schemaVersion}, mới hơn app này (${SCHEMA_VERSION}). Hãy cập nhật app trước.`);
+    throw new BackupError(`Tệp sao lưu có schemaVersion ${json.schemaVersion}, mới hơn app này (${SCHEMA_VERSION}). Hãy cập nhật app trước. Tải lại trang 2–3 lần; nếu đã cài ra màn hình chính thì đóng hẳn app rồi mở lại.`);
   }
   if (!json.data || typeof json.data !== "object") throw new BackupError("Tệp sao lưu thiếu phần dữ liệu.");
 

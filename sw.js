@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v20";
+const CACHE_VERSION = "elh-v21";
 
 // js/vendor/pdfjs/wasm/ and js/vendor/pdfjs/standard_fonts/ (~2.2 MB: JPX / JBIG2 scans, colour profiles, standard fonts) are NOT in
 // APP_SHELL on purpose: the fetch handler below caches them the first time PDF.js asks for them.
@@ -22,6 +22,11 @@ const APP_SHELL = [
   "css/enrich.css",
   "css/ai.css",
   "css/exercise.css",
+  "css/schedule.css",
+  "js/components/dashboard-schedule.js",
+  "js/components/schedule-dialog.js",
+  "js/services/schedule.js",
+  "js/services/schedule-ops.js",
   "js/config.js",
   "js/app.js",
   "js/router.js",

@@ -98,7 +98,8 @@ Tab đáy iPhone: Dashboard · Cambridge · AI · Từ vựng · Lỗi. Vùng b�
 - Hero: "Buổi luyện tiếp theo: Cam 15 · Test 3", nhãn "Đến hạn ôn: 18 từ · 5 lỗi", nút chính **Bắt đầu buổi luyện (khởi động 15 phút)** → `#/warmup`.
 - 4 thẻ số: Tiến độ Cam 10–19 (x/40 test), Band trung bình (overall + L/R/W/S, mục tiêu 7.0), Từ vựng đã lưu (+ số đến hạn), Lỗi cần khắc phục (+ nhóm nhiều nhất).
 - Hoạt động gần đây: 5 mục cuối (attempt, submission).
-- **Bắt buộc sửa:** bỏ nút "Thêm nhanh" trên header (đã có FAB); nhãn AI chỉ ghi "Claude"; số liệu `whitespace: nowrap`; ví dụ mẫu Reading 32/40 = **7.0**. Mobile: hero ghi buổi tiếp theo, không có thẻ "Chuỗi ngày".
+- **Lịch học (Bước 8d):** nút "Cài đặt lịch" mở hộp thoại: ngày thi (trống = xếp đều, không có hạn chót; ngày trong quá khứ bị từ chối), ngày học T2…CN, số phút mỗi buổi (tối thiểu 30, mặc định 60, đã gồm 15' khởi động), kiểu buổi (mỗi buổi 1 kỹ năng, hoặc cả test 4 kỹ năng), thứ tự (Cam mới trước 19→10, hoặc cũ trước). Cài đặt nằm ở store `settings` (key `schedule`), theo backup và Drive. **Không lưu lịch từng ngày:** `buildSchedule` (hàm thuần, `js/services/schedule.js`) tính lại từ cài đặt và `attempts` mỗi lần mở Dashboard. Bài = (cuốn, test, kỹ năng), tổng 160; Writing xong khi Task 1 hoặc Task 2 có điểm. Mỗi buổi bắt đầu bằng Khởi động 15'. Kiểu 1 kỹ năng: xoay L→R→W→S bắt đầu sau kỹ năng của attempt gần nhất trước hôm nay; L, R, W mỗi buổi 1 bài, Speaking tối đa 3 bài (15'/bài); bài dài hơn thời gian còn lại thì ghi "có thể chia 2 lần". Kiểu cả test: một buổi gồm các kỹ năng còn thiếu của một test, ghi "chia nhiều lần". Buổi bỏ lỡ không dồn: phần chưa làm tự dời sang buổi kế tiếp. Phần của hôm nay tính từ những gì còn thiếu lúc đầu ngày nên đứng yên cả ngày. Thiếu buổi trước ngày thi thì hiện cảnh báo (thiếu bao nhiêu buổi), gợi ý thêm ngày học hoặc chuyển "Cam mới trước".
+- **Dashboard · Lịch học:** thẻ "Hôm nay" (khởi động + bài, nút **Bắt đầu** mở `#/practice/:book/:test/:skill`; Speaking mở panel test và có link "Luyện nói với thu âm"); ngày nghỉ hiện "Hôm nay nghỉ" kèm buổi kế tiếp; dải 7 ngày T2–CN (✓ khi có attempt có `date` đúng ngày đó, ngày đã qua không làm thì nhạt "Bỏ lỡ"); dòng "Đã xong x/160 bài (tính từng kỹ năng) · còn y buổi đến ngày thi". Chưa cài đặt thì hiện lời mời; các phần Dashboard khác giữ nguyên.- **Bắt buộc sửa:** bỏ nút "Thêm nhanh" trên header (đã có FAB); nhãn AI chỉ ghi "Claude"; số liệu `whitespace: nowrap`; ví dụ mẫu Reading 32/40 = **7.0**. Mobile: hero ghi buổi tiếp theo, không có thẻ "Chuỗi ngày".
 
 ### 5.2 Cambridge Practice · Tiến độ
 - 4 thẻ tóm tắt (giống Dashboard nhưng theo test).
@@ -257,7 +258,7 @@ App không lưu toàn văn đề, audio, đáp án hay bài đọc. Chỉ lưu: 
 
 ## 7. Dữ liệu
 
-### 7.1 IndexedDB `elh`, `schemaVersion: 2`
+### 7.1 IndexedDB `elh`, `schemaVersion: 3`
 Mọi bản ghi: `id` (UUID), `createdAt`, `updatedAt`, `deleted` (tombstone cho sync).
 
 | Store | Trường chính | Index / khoá duy nhất |
@@ -272,6 +273,7 @@ Mọi bản ghi: `id` (UUID), `createdAt`, `updatedAt`, `deleted` (tombstone cho
 | `exercises` | errorIds[], items[] {id, errorId, kind (fill/correct/choose/rewrite), question, options? (choose), answer, acceptedAnswers[], explanationVi, userAnswer, correct (true/false/null), selfGraded}, score (số câu đúng), doneAt (null cho tới khi làm xong), aiMode | idx errorIds (multiEntry) |
 | `notebooks` | group (6 nhóm), name, notebookUrl, sourceCount, purpose | **unique** group |
 | `notes` | text, example, citation, origin (notebooklm/manual), links[] {type, id} | idx links (multiEntry) |
+| `settings` | key (tên cài đặt, ví dụ `"schedule"`), rồi các trường của cài đặt đó. Lịch học: examDate ("YYYY-MM-DD" hoặc ""), days[] (thứ ISO 1=T2…7=CN), minutes (30–600), mode (`skill`/`test`), order (`new`/`old`) | key |
 
 So với bản thiết kế: bỏ `materials` (Learning Materials đã gộp vào Cambridge Practice, nguồn đã có trong `source`); thêm `attempts`, `tests`, `sessions`; `vocab.examples` đổi thành `contexts[]` có nguồn.
 
@@ -279,16 +281,16 @@ So với bản thiết kế: bỏ `materials` (Learning Materials đã gộp và
 
 `submissions` bổ sung: `doneAt` (bài Writing đã bấm Xong; `status` vẫn `draft` cho tới khi Claude chấm), `source.task` (1 hoặc 2). `attempts.submissionId` trỏ tới bài Writing đã viết trong màn Luyện đề.
 
-**Chỉ trên máy (ngoài bảng trên):** store `recordings` của IndexedDB (ghi âm Speaking: `id`, `submissionId`, `part`, `createdAt`, `durationSec`, `mimeType`, `size`, `audio` dạng ArrayBuffer; index `submissionId`, `createdAt`). Định nghĩa ở `js/services/local-schema.js`, KHÔNG thuộc `STORE_DEFS` nên không bao giờ vào backup JSON, `elh-data.json`, `exportRaw` hay `replaceAllRaw`. Phiên bản IndexedDB là 3 (`DB_VERSION`); `schemaVersion` của backup vẫn là 2.
+**Chỉ trên máy (ngoài bảng trên):** store `recordings` của IndexedDB (ghi âm Speaking: `id`, `submissionId`, `part`, `createdAt`, `durationSec`, `mimeType`, `size`, `audio` dạng ArrayBuffer; index `submissionId`, `createdAt`). Định nghĩa ở `js/services/local-schema.js`, KHÔNG thuộc `STORE_DEFS` nên không bao giờ vào backup JSON, `elh-data.json`, `exportRaw` hay `replaceAllRaw`. Phiên bản IndexedDB là 4 (`DB_VERSION`; 4 thêm store `settings`: máy ở version 2 hoặc 3 chỉ được tạo thêm các store còn thiếu, không đụng store có dữ liệu); `schemaVersion` của backup là 3. File backup / Drive schema 1 và 2 vẫn đọc được (store thiếu coi như rỗng); app cũ gặp file schema 3 báo "mới hơn app này" kèm cách cập nhật (tải lại trang 2–3 lần; nếu đã cài ra màn hình chính thì đóng hẳn app rồi mở lại).
 
 LocalStorage: nháp Luyện đề `elh.run.<book>-<test>-<skill>` (Writing thêm `-<task>`) và tên file đã chọn `elh.runFiles.<book>-<test>` (chỉ tên, không có file), theme, `elh.autoTranscribe` ("1"/"0"), `elh.speechLang` (en-GB/en-US), aiMode (manual/api), proxyUrl, accessCode (Phase 2b), lastBackupAt, bookOrder.
 
 ### 7.2 Backup / Drive
 File `elh-data.json` (Drive appDataFolder) và `elh-backup-YYYY-MM-DD.json` cùng định dạng:
 ```json
-{ "app": "english-learning-hub", "schemaVersion": 2, "exportedAt": "...",
+{ "app": "english-learning-hub", "schemaVersion": 3, "exportedAt": "...",
   "data": { "vocab": [], "errors": [], "occurrences": [], "attempts": [], "tests": [],
-            "submissions": [], "sessions": [], "exercises": [], "notebooks": [], "notes": [] } }
+            "submissions": [], "sessions": [], "exercises": [], "notebooks": [], "notes": [], "settings": [] } }
 ```
 - Gộp: theo `id`, bản `updatedAt` mới hơn thắng; trùng khoá duy nhất (lemma+pos, signature) → gộp, cộng `occurrences`, nối `contexts`.
 - Xoá = `deleted: true`; dọn tombstone cũ hơn 90 ngày.
@@ -386,6 +388,7 @@ Quy tắc chung: số, nút, tag dùng `white-space: nowrap`; tiêu đề thẻ 
 | 8a | AI copy/paste (2a): "Hoàn thiện với Claude" cho từ và lỗi ghi nhanh (mục 6.6, tác vụ `vocab_enrich`, `error_enrich`) | Ghi 3 từ chỉ có chữ + 1 lỗi → sao chép prompt → dán JSON mẫu → duyệt, sửa, tick → lưu: thẻ có IPA, nghĩa, collocation, lỗi có nhóm + signature; trùng thì gộp, giữ box Leitner của thẻ cũ; JSON sai thì báo và không lưu gì |
 | 8b | AI copy/paste (2a): Writing & Speaking (mục 5.6): `writing_task1`, `writing_task2`, `speaking`; band tổng app tự tính lại từ 4 tiêu chí; khay lỗi / từ lưu và chống trùng như 8a | Viết một bài Task 2, sao chép prompt sang claude.ai, dán JSON về, xem 3 tab, lưu lỗi và từ → thấy trong Grammar Notebook, Vocabulary Bank và ô W trên ma trận; JSON sai thì báo và không lưu gì |
 | 8c | AI copy/paste (2a): tạo bài tập từ lỗi (`exercise_generate`; `exercise_grade` tuỳ chọn, chưa làm) | Chọn 2 lỗi thật → sao chép prompt sang claude.ai → dán JSON → làm hết bài (có đúng, sai, tự chấm) → thấy kết quả và trạng thái lỗi cập nhật (số lần luyện, đề xuất khắc phục, ưu tiên khởi động) |
+| 8d | Lịch học trên Dashboard (mục 5.1; store `settings`, DB 4, schema 3) | Đặt ngày thi + T2–T6 → thấy việc hôm nay, dải 7 ngày, cảnh báo nếu thiếu buổi; làm xong một bài thì hôm nay có ✓; đổi lịch trên máy này thì máy kia nhận qua Drive |
 | 9 | AI qua proxy (2b) | Không có key trong mã nguồn; chấm Task 2 < 60s |
 
 Mỗi bước: chạy thử trên Chrome desktop + Safari iOS, rồi mới sang bước sau.

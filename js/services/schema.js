@@ -2,7 +2,7 @@
 import { lemmaPosKey } from "./dedupe.js";
 
 export const APP_ID = "english-learning-hub";
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3; // 3: the settings store (study schedule). Files of schema 1 and 2 are still read; a store missing from a file is just empty.
 export const DB_NAME = "elh";
 
 const idx = (name, extra = {}) => ({ name, keyPath: name, unique: false, multiEntry: false, ...extra });
@@ -18,6 +18,8 @@ export const STORE_DEFS = {
   exercises: { keyPath: "id", indexes: [idx("errorIds", { multiEntry: true })] },
   notebooks: { keyPath: "id", indexes: [idx("group", { unique: true })] },
   notes: { keyPath: "id", indexes: [idx("linkKeys", { multiEntry: true })] },
+  // Small named settings that must follow the learner to every device (backup + Drive). Keyed by name, e.g. "schedule".
+  settings: { keyPath: "key", indexes: [] },
 };
 
 export const STORE_NAMES = Object.keys(STORE_DEFS);

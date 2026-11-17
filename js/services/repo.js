@@ -36,6 +36,8 @@ export async function put(store, obj) {
 
     if (store === "tests") {
       if (!rec.key) throw new RepoError('Test cần có key, ví dụ "15-3".');
+    } else if (store === "settings") {
+      if (!rec.key) throw new RepoError("Cài đặt cần có key.");
     } else if (!rec.id) {
       rec.id = crypto.randomUUID();
     }

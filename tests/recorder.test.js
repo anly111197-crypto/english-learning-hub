@@ -163,13 +163,14 @@ test("auto transcribe: the saved choice wins on every device", () => {
 });
 
 // ---- Recordings stay out of backups and Drive ----
-test("recordings are a local-only store: not in STORE_NAMES (so not in backup, sync or exportRaw), and the backup version is unchanged", () => {
+test("recordings are a local-only store: not in STORE_NAMES (so not in backup, sync or exportRaw)", () => {
   assert.ok(!STORE_NAMES.includes("recordings"));
   assert.ok(!("recordings" in STORE_DEFS));
   assert.ok("recordings" in LOCAL_STORES);
-  assert.equal(SCHEMA_VERSION, 2); // backup format: older and newer backups still read each other
-  assert.equal(DB_VERSION, 3);
-  assert.equal(STORE_NAMES.length, 10);
+  assert.equal(SCHEMA_VERSION, 3); // backup format: 3 added the settings store; files of schema 1 and 2 are still read
+  assert.equal(DB_VERSION, 4);
+  assert.equal(STORE_NAMES.length, 11);
+  assert.ok(STORE_NAMES.includes("settings"));
 });
 
 // ---- Upgrading the database ----
@@ -190,41 +191,49 @@ function fakeDb(existing) {
   return { db, tx, calls, names };
 }
 const opts = { storeDefs: STORE_DEFS, localStores: LOCAL_STORES };
+const TEN_STORES = STORE_NAMES.filter((n) => n !== "settings"); // what a version 2 or 3 database holds
+const created = (calls) => calls.filter((c) => c[0] === "createObjectStore").map((c) => c[1]);
 
-test("upgrade 2 -> 3: ONLY the recordings store is created; no old store is opened, changed or re-indexed", () => {
-  const { db, tx, calls, names } = fakeDb(STORE_NAMES);
+test("upgrade 2 -> 4: ONLY settings and recordings are created; no old store is opened, changed or re-indexed", () => {
+  const { db, tx, calls, names } = fakeDb(TEN_STORES);
   upgradeDb(db, tx, 2, opts);
-  assert.deepEqual(calls.filter((c) => c[0] === "createObjectStore").map((c) => c[1]), ["recordings"]);
+  assert.deepEqual(created(calls), ["settings", "recordings"]);
   assert.deepEqual(calls.filter((c) => c[0] === "createIndex").map((c) => [c[1], c[2]]), [["recordings", "submissionId"], ["recordings", "createdAt"]]);
   assert.ok(!calls.some((c) => c[0] === "objectStore")); // never touched a store that holds data
-  assert.ok(![...calls].some((c) => c[0] !== "createObjectStore" && c[0] !== "createIndex" && c[0] !== "objectStore"));
+  assert.deepEqual(calls.find((c) => c[1] === "settings")[2], { keyPath: "key" });
   for (const n of STORE_NAMES) assert.ok(names.has(n));
   assert.ok(names.has("recordings"));
 });
 
-test("upgrade of a fresh install (0 -> 3) creates the 10 data stores with their indexes and the recordings store", () => {
+test("upgrade 3 -> 4: ONLY the settings store is created", () => {
+  const { db, tx, calls } = fakeDb([...TEN_STORES, "recordings"]);
+  upgradeDb(db, tx, 3, opts);
+  assert.deepEqual(created(calls), ["settings"]);
+  assert.ok(!calls.some((c) => c[0] === "objectStore" || c[0] === "createIndex"));
+});
+
+test("upgrade of a fresh install (0 -> 4) creates the 11 data stores with their indexes and the recordings store", () => {
   const { db, tx, calls, names } = fakeDb([]);
   upgradeDb(db, tx, 0, opts);
-  assert.equal(calls.filter((c) => c[0] === "createObjectStore").length, 11);
+  assert.equal(created(calls).length, 12);
   for (const n of [...STORE_NAMES, "recordings"]) assert.ok(names.has(n), n);
   const lemma = calls.find((c) => c[0] === "createIndex" && c[1] === "vocab" && c[2] === "lemmaPos");
   assert.equal(lemma[4].unique, true);
 });
 
-test("upgrade 1 -> 3 completes what a version 1 database lacked, as before, and adds recordings", () => {
+test("upgrade 1 -> 4 completes what a version 1 database lacked, as before, and adds settings and recordings", () => {
   const { db, tx, calls } = fakeDb(["vocab"]);
   upgradeDb(db, tx, 1, opts);
-  assert.ok(calls.some((c) => c[0] === "createObjectStore" && c[1] === "errors"));
-  assert.ok(calls.some((c) => c[0] === "createObjectStore" && c[1] === "recordings"));
+  for (const n of ["errors", "settings", "recordings"]) assert.ok(calls.some((c) => c[0] === "createObjectStore" && c[1] === n), n);
 });
 
-test("opening a version 3 database again changes nothing", () => {
+test("opening a version 4 database again changes nothing", () => {
   const { db, tx, calls } = fakeDb([...STORE_NAMES, "recordings"]);
-  upgradeDb(db, tx, 3, opts);
+  upgradeDb(db, tx, 4, opts);
   assert.deepEqual(calls, []);
 });
 
-test("a database that already has a recordings store is not asked to create it twice", () => {
+test("a database that already has the stores is not asked to create them twice", () => {
   const { db, tx, calls } = fakeDb([...STORE_NAMES, "recordings"]);
   upgradeDb(db, tx, 2, opts);
   assert.deepEqual(calls, []);

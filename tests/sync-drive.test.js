@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createDriveClient, syncOnce, SyncError, sameSnapshot, buildPayload, checkRemoteChanged } from "../js/services/sync-drive.js";
 import { describeSync, agoText, shouldPoll } from "../js/services/sync-status.js";
-import { STORE_NAMES } from "../js/services/schema.js";
+import { STORE_NAMES, SCHEMA_VERSION } from "../js/services/schema.js";
 
 const TOKEN = "ya29.SECRET-TEST-TOKEN";
 
@@ -82,7 +82,7 @@ test("first sync creates elh-data.json in appDataFolder in the backup format", a
   assert.equal(drive.files[0].name, "elh-data.json");
   const file = drive.content();
   assert.equal(file.app, "english-learning-hub");
-  assert.equal(file.schemaVersion, 2);
+  assert.equal(file.schemaVersion, SCHEMA_VERSION);
   assert.deepEqual(file.data.vocab.map((r) => r.lemma), ["alpha"]);
   for (const s of STORE_NAMES) assert.ok(Array.isArray(file.data[s]), s);
 });
@@ -380,4 +380,47 @@ test("shouldPoll: only connected + visible tab + online + signed in; each one st
   assert.equal(shouldPoll({ ...on, online: false }), false);
   assert.equal(shouldPoll({ ...on, status: "needs-login" }), false);
   assert.equal(shouldPoll({ ...on, status: "off" }), false);
+});
+
+// ---- The study schedule (settings store) travels like the other data ----
+const schedule = (updatedAt, extra = {}) => ({ key: "schedule", createdAt: "2026-01-01T00:00:00.000Z", updatedAt, deleted: false, examDate: "", days: [1, 2, 3, 4, 5], minutes: 60, mode: "skill", order: "new", ...extra });
+
+test("schedule settings reach the other device through Drive, and the newer edit wins on both", async () => {
+  const drive = fakeDrive();
+  const a = device(drive);
+  const b = device(drive);
+  a.data.settings = [schedule("2026-02-01T00:00:00.000Z", { examDate: "2027-03-01", minutes: 90 })];
+  await a.sync("2026-02-02T00:00:00.000Z");
+  assert.equal(drive.content().data.settings[0].key, "schedule");
+  await b.sync("2026-02-03T00:00:00.000Z");
+  assert.equal(b.data.settings.length, 1);
+  assert.equal(b.data.settings[0].examDate, "2027-03-01");
+  assert.equal(b.data.settings[0].minutes, 90);
+  // b edits it later, a syncs again and takes b's version
+  b.data.settings = [schedule("2026-02-05T00:00:00.000Z", { examDate: "2027-04-01", minutes: 45, days: [6, 7] })];
+  await b.sync("2026-02-06T00:00:00.000Z");
+  await a.sync("2026-02-07T00:00:00.000Z");
+  assert.equal(a.data.settings.length, 1);
+  assert.deepEqual([a.data.settings[0].examDate, a.data.settings[0].minutes, a.data.settings[0].days], ["2027-04-01", 45, [6, 7]]);
+});
+
+test("a Drive file written by an older app (schemaVersion 2, no settings) is still read; local settings survive", async () => {
+  const drive = fakeDrive();
+  const old = { app: "english-learning-hub", schemaVersion: 2, exportedAt: "2026-01-10T00:00:00.000Z", data: { vocab: [word("1", "alpha")] } };
+  drive.files.push({ id: "f0", name: "elh-data.json", createdTime: "2026-01-01T00:00:00.000Z", modifiedTime: "2026-01-10T00:00:00.000Z", content: JSON.stringify(old) });
+  const a = device(drive);
+  a.data.settings = [schedule("2026-02-01T00:00:00.000Z", { minutes: 75 })];
+  await a.sync("2026-02-02T00:00:00.000Z");
+  assert.deepEqual(lemmas(a), ["alpha"]);
+  assert.equal(a.data.settings[0].minutes, 75);
+  assert.equal(JSON.parse(drive.files[0].content).schemaVersion, SCHEMA_VERSION);
+});
+
+test("a Drive file with a newer schemaVersion is refused with the update instructions and is not overwritten", async () => {
+  const drive = fakeDrive();
+  const future = { ...buildPayload({}), schemaVersion: SCHEMA_VERSION + 1 };
+  drive.files.push({ id: "f0", name: "elh-data.json", createdTime: "2026-01-01T00:00:00.000Z", modifiedTime: "2026-01-10T00:00:00.000Z", content: JSON.stringify(future) });
+  const a = device(drive);
+  await assert.rejects(() => a.sync(), (e) => /Tải lại trang 2–3 lần; nếu đã cài ra màn hình chính thì đóng hẳn app rồi mở lại/.test(e.message));
+  assert.equal(JSON.parse(drive.files[0].content).schemaVersion, SCHEMA_VERSION + 1);
 });

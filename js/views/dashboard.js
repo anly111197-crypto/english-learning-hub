@@ -4,6 +4,8 @@ import { h } from "../components/dom.js";
 import { mountBackupControls } from "../components/backup-ui.js";
 import { mountSyncStatus } from "../components/sync-ui.js";
 import { openEnrich } from "../components/enrich-modal.js";
+import { scheduleSection } from "../components/dashboard-schedule.js";
+import { loadScheduleRecord } from "../services/schedule-ops.js";
 import { countPendingByKind } from "../services/enrich-ops.js";
 import { loadDashboardData } from "../services/practice-store.js";
 import { computeDashboard } from "../services/dashboard-stats.js";
@@ -123,12 +125,13 @@ export function dashboardView(container) {
 
   container.replaceChildren(h("h1", { class: "page-title" }, "Dashboard"), body, backup);
 
-  const load = () => loadDashboardData().then((data) => {
+  const load = () => Promise.all([loadDashboardData(), loadScheduleRecord().catch(() => null)]).then(([data, scheduleRecord]) => {
     if (!container.contains(body)) return; // the user already moved to another page
     const d = computeDashboard({ ...data, today: isoDate() });
     countPendingByKind().catch(() => ({ vocab: 0, errors: 0 })).then((pending) => {
       if (!container.contains(body)) return;
-      body.replaceChildren(...[hero(d), statCards(d), enrichCard(pending), activitySection(d)].filter(Boolean));
+      const schedule = scheduleSection({ record: scheduleRecord, attempts: data.attempts, today: isoDate(), onChange: load });
+      body.replaceChildren(...[hero(d), schedule, statCards(d), enrichCard(pending), activitySection(d)].filter(Boolean));
     });
   }).catch((err) => {
     if (container.contains(body)) body.replaceChildren(h("p", { class: "form-error" }, `Không đọc được dữ liệu: ${err.message}`));

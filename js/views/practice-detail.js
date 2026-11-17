@@ -116,6 +116,7 @@ export function buildDetail(ctx, on) {
     h("h3", { class: "section-label" }, "Luyện trong app"),
     h("div", { class: "run-links" }, [["L", "Listening"], ["R", "Reading"], ["W", "Writing"]].map(([skill, name]) =>
       h("a", { class: "btn btn-outline", href: `#/practice/${book}/${test}/${skill}` }, `Luyện ${name}`))),
+    h("p", { class: "speak-link" }, h("a", { class: "link", href: "#/ai/speaking", dataset: { role: "speak-link" } }, "Luyện nói với thu âm"), " (Speaking: ghi điểm ở nút Nhập kết quả)"),
     h("h3", { class: "section-label" }, "Đề và audio của bạn"),
     linksBlock(testRec) ?? h("p", { class: "muted" }, "Chưa có link."),
     h("button", { type: "button", class: "btn btn-text btn-sm", onClick: on.editLinks }, "Sửa link"),

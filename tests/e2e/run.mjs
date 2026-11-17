@@ -61,6 +61,42 @@ const go = async (url, w = 1280, h = 800) => {
 };
 const shot = async (name) => { const r = await send("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SC, name), Buffer.from(r.result.data, "base64")); };
 
+// Fake Google sign-in + fake Drive injected into the page (the real Google is never contacted); used by the sync scenarios.
+const FAKE_DRIVE = `(() => {
+      const L = localStorage;
+      window.__tokenRequests = []; window.__userActive = []; window.__driveCalls = [];
+      window.google = { accounts: { oauth2: {
+        initTokenClient(cfg) { return { requestAccessToken(o) {
+          __tokenRequests.push(o); __userActive.push(navigator.userActivation.isActive);
+          setTimeout(() => { if (L.getItem('__gisMode') === 'fail') cfg.error_callback({ type: 'popup_failed_to_open' }); else cfg.callback({ access_token: 'FAKE-TOKEN', expires_in: 3600 }); }, 20);
+        } }; },
+        hasGrantedAllScopes: () => true,
+        revoke(t, cb) { window.__revoked = t; cb && cb(); } } } };
+      const realFetch = window.fetch.bind(window);
+      window.fetch = async (url, init = {}) => {
+        const u = new URL(url, location.href);
+        if (u.hostname !== 'www.googleapis.com') return realFetch(url, init);
+        __driveCalls.push((init.method || 'GET') + ' ' + u.pathname);
+        const mode = L.getItem('__fakeMode') || 'ok';
+        if (mode === 'offline') throw new TypeError('Failed to fetch');
+        if (mode === '401' || !init.headers || init.headers.Authorization !== 'Bearer FAKE-TOKEN') return new Response('', { status: 401 });
+        const file = JSON.parse(L.getItem('__fakeFile') || 'null');
+        const reply = (o) => new Response(JSON.stringify(o), { status: 200 });
+        if (u.pathname === '/drive/v3/files' && !init.method) return reply({ files: file ? [{ id: 'F1', createdTime: file.createdTime, modifiedTime: file.modifiedTime }] : [] });
+        if (u.pathname === '/drive/v3/files/F1' && !init.method) return file ? new Response(file.content) : new Response('', { status: 404 });
+        if (u.pathname === '/upload/drive/v3/files/F1' && init.method === 'PATCH') { file.content = init.body; file.modifiedTime = new Date(Date.now() + 1).toISOString(); L.setItem('__fakeFile', JSON.stringify(file)); return reply({ id: 'F1', modifiedTime: file.modifiedTime }); }
+        if (u.pathname === '/upload/drive/v3/files' && init.method === 'POST') {
+          const parts = init.body.split(/--[^\\r\\n]+/).filter((p) => p.includes('Content-Type'));
+          const made = { createdTime: new Date().toISOString(), modifiedTime: new Date().toISOString(), content: parts[1].split('\\r\\n\\r\\n')[1].trim() };
+          L.setItem('__fakeFile', JSON.stringify(made));
+          return reply({ id: 'F1', modifiedTime: made.modifiedTime });
+        }
+        return new Response('', { status: 400 });
+      };
+    })();`;
+// Date frozen at Tuesday 17/11/2026 09:00 local time, still ticking, so the study schedule is predictable.
+const FREEZE_TUESDAY = `(() => { const R = Date; const fixed = new R(2026, 10, 17, 9, 0, 0).getTime(); const start = R.now(); class D extends R { constructor(...a) { if (a.length === 0) super(fixed + (R.now() - start)); else super(...a); } static now() { return fixed + (R.now() - start); } } window.Date = D; })();`;
+
 try {
   if (scenario === "selfcheck") {
     await go(BASE + "?dev=1&autorun=1#/dev");
@@ -1738,43 +1774,183 @@ try {
       ok("warm-up has no such button", (await count("[data-role=capture]")) === 0);
     }
     console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
+  } else if (scenario === "schedule" || scenario === "schedule-m") {
+    // Study schedule on the Dashboard (settings dialog, today card, 7-day strip, progress line). "Today" is frozen at
+    // Tuesday 17/11/2026 so the plan is predictable. Phone: 390px, laptop: 1280px.
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    const mobile = scenario === "schedule-m";
+    const [W, H] = mobile ? [390, 844] : [1280, 800];
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: FREEZE_TUESDAY });
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.textContent ?? null`);
+    const count = (sel) => ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+    };
+    const dbAll = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; })`);
+    const putAttempt = (a) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const tx = r.result.transaction('attempts', 'readwrite'); const now = new Date().toISOString(); tx.objectStore('attempts').put({ createdAt: now, updatedAt: now, deleted: false, band: 6.5, ...${JSON.stringify(a)} }); tx.oncomplete = () => res(true); }; })`);
+    const setValue = (sel, v) => ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+    const noOverflow = () => ev(`document.documentElement.scrollWidth <= innerWidth`);
+    const openDashboard = async () => { await go(BASE + "#/", W, H); await waitFor(`document.querySelector('.dashboard-body .hero')`, 8000); await sleep(400); };
+    const saveDialog = async () => { await realClick("[data-role=sch-save]"); await sleep(500); };
+
+    await go(BASE + "manifest.json", W, H);
+    await ev(`localStorage.clear()`);
+    await openDashboard();
+    await putAttempt({ id: "a-19-1-L", book: 19, test: 1, skill: "L", date: "2026-11-16", rawScore: 30 });
+    ok("the frozen date is Tuesday 17/11/2026", await ev(`new Date().getDate() === 17 && new Date().getDay() === 2`));
+    await openDashboard();
+
+    // Not set up yet: an invitation, and the rest of the Dashboard is untouched
+    ok("no schedule yet: an invitation with the 'Cài đặt lịch' button; hero and the four cards are still there", (await count("[data-role=sched-invite]")) === 1 && (await count("[data-role=sched-today]")) === 0 && (await count(".hero")) === 1 && (await count(".stat-card")) === 4 && (await text("[data-role=sch-settings]")) === "Cài đặt lịch");
+    if (mobile) ok("390px: no horizontal scroll", await noOverflow());
+    await shot(mobile ? "sched-m-invite.png" : "sched-d-invite.png");
+
+    // Dialog: invalid input is refused and nothing is saved
+    await realClick("[data-role=sch-settings]");
+    ok("the dialog opens with the defaults (Mon-Fri, 60 minutes, one skill, new Cams first)", await waitFor(`document.querySelector('dialog[open] #schedule-form')`, 3000) && (await ev(`[...document.querySelectorAll('.sch-day input')].map((b) => b.checked ? 1 : 0).join('')`)) === "1111100" && (await ev(`document.querySelector('[data-role=sch-minutes]').value`)) === "60" && (await ev(`document.querySelector('input[name=sch-mode]:checked').dataset.value`)) === "skill" && (await ev(`document.querySelector('input[name=sch-order]:checked').dataset.value`)) === "new");
+    await setValue("[data-role=sch-minutes]", "15");
+    await saveDialog();
+    ok("15 minutes: an error inside the dialog (minimum 30), the dialog stays open, nothing saved", (await text("[data-error=minutes]")).includes("tối thiểu 30") && (await count("dialog[open]")) === 1 && (await dbAll("settings")).length === 0, await text("[data-error=minutes]"));
+    await setValue("[data-role=sch-minutes]", "60");
+    await setValue("[data-role=sch-exam]", "2026-11-10");
+    await saveDialog();
+    ok("an exam date in the past: an error, nothing saved", (await text("[data-error=examDate]")).includes("quá khứ") && (await count("dialog[open]")) === 1 && (await dbAll("settings")).length === 0, await text("[data-error=examDate]"));
+    await setValue("[data-role=sch-exam]", "2026-12-18");
+    await saveDialog();
+    ok("a valid schedule closes the dialog and is saved in the settings store (and nowhere in localStorage)", (await count("dialog[open]")) === 0 && await (async () => { const s = await dbAll("settings"); return s.length === 1 && s[0].key === "schedule" && s[0].examDate === "2026-12-18" && s[0].minutes === 60 && s[0].days.join() === "1,2,3,4,5" && s[0].mode === "skill" && s[0].order === "new"; })() && !(await ev(`JSON.stringify(Object.entries(localStorage)).includes('schedule')`)));
+    await waitFor(`document.querySelector('[data-role=sched-today]')`, 5000);
+    await sleep(300);
+
+    // Today card: Listening 19-1 was done on Monday, so the rotation goes on with Reading
+    ok("today card: 'Hôm nay · T3 17/11', the warm-up first, then Cam 19 · Test 1 · Reading", (await text(".sched-today-title")) === "Hôm nay · T3 17/11" && (await text("[data-role=sched-warmup]")).includes("Khởi động 15'") && (await text(".sched-today .sched-item:not(.sched-warm)")).includes("Cam 19 · Test 1 · Reading"), await text("[data-role=sched-today]"));
+    ok("'Bắt đầu' opens exactly that practice screen", (await ev(`document.querySelector('[data-role=sched-start]').getAttribute('href')`)) === "#/practice/19/1/R");
+    ok("the note says how long it takes and that Reading can be split (60' > 45')", (await text("[data-role=sched-note]")).includes("75 phút") && (await text("[data-role=sched-note]")).includes("có thể chia 2 lần"), await text("[data-role=sched-note]"));
+    const week = await ev(`[...document.querySelectorAll('.sched-day')].map((d) => d.dataset.date + ':' + d.dataset.state + ':' + d.dataset.today)`);
+    ok("7 days Monday to Sunday: Monday ticked (an attempt dated that day), today marked, Wed-Fri planned, weekend off", week.join() === "2026-11-16:done:false,2026-11-17:today:true,2026-11-18:planned:false,2026-11-19:planned:false,2026-11-20:planned:false,2026-11-21:off:false,2026-11-22:off:false", week.join());
+    ok("Monday shows ✓ and what was done; the weekend says 'Nghỉ'", (await text(".sched-day[data-date='2026-11-16']")).includes("✓") && (await text(".sched-day[data-date='2026-11-16']")).includes("L · Cam 19 T1") && (await text(".sched-day[data-date='2026-11-21']")).includes("Nghỉ"));
+    ok("progress line: 'Đã xong 1/160 bài (tính từng kỹ năng)' and the sessions left up to the exam date", (await text("[data-role=sched-progress]")).startsWith("Đã xong 1/160 bài (tính từng kỹ năng)") && (await text("[data-role=sched-progress]")).includes("buổi đến ngày thi (18/12/2026)"), await text("[data-role=sched-progress]"));
+    ok("far too few sessions before the exam: a visible warning with the number missing", (await text("[data-role=sched-warning]")).includes("Thiếu") && /Thiếu \d+ buổi trước ngày thi/.test(await text("[data-role=sched-warning]")), await text("[data-role=sched-warning]"));
+    ok("hero and the four cards are still there below the schedule", (await count(".hero")) === 1 && (await count(".stat-card")) === 4 && await ev(`document.querySelector('.hero').compareDocumentPosition(document.querySelector('[data-role=sched]')) & Node.DOCUMENT_POSITION_FOLLOWING`));
+    if (mobile) {
+      ok("390px: no horizontal scroll, the start button is at least 44px tall, the week is a single column", await noOverflow() && (await ev(`document.querySelector('[data-role=sched-start]').getBoundingClientRect().height`)) >= 44 && (await ev(`new Set([...document.querySelectorAll('.sched-day')].map((d) => Math.round(d.getBoundingClientRect().left))).size`)) === 1);
+    } else {
+      ok("1280px: the 7 days sit in one row", (await ev(`new Set([...document.querySelectorAll('.sched-day')].map((d) => Math.round(d.getBoundingClientRect().top))).size`)) === 1);
+    }
+    await ev(`window.scrollTo(0, 0)`);
+    await shot(mobile ? "sched-m-today.png" : "sched-d-today.png");
+
+    // 'Bắt đầu' goes to the practice screen of that skill
+    await realClick("[data-role=sched-start]");
+    ok("clicking 'Bắt đầu' lands on #/practice/19/1/R", await waitFor(`location.hash === '#/practice/19/1/R' && document.querySelector('.run')`, 6000));
+    await go(BASE + "#/practice/19/1", W, H);
+    await waitFor(`document.querySelector('[data-role=speak-link]')`, 6000);
+    ok("the test panel has a 'Luyện nói với thu âm' link to the Speaking screen", (await ev(`document.querySelector('[data-role=speak-link]').getAttribute('href')`)) === "#/ai/speaking");
+
+    // Doing today's item: ticked, the day is done, today's plan does not jump
+    await putAttempt({ id: "a-19-1-R", book: 19, test: 1, skill: "R", date: "2026-11-17", rawScore: 28 });
+    await openDashboard();
+    ok("after a Reading attempt dated today: the item is ticked, 'Đã xong buổi hôm nay', no start button, today is ✓ in the strip", (await ev(`document.querySelector('.sched-today .sched-item:not(.sched-warm)').dataset.done`)) === "true" && (await count("[data-role=sched-done]")) === 1 && (await count("[data-role=sched-start]")) === 0 && (await ev(`document.querySelector('.sched-day[data-today=true]').dataset.state`)) === "done");
+    ok("the week after it is unchanged (Wednesday is still Writing) and the progress counts 2/160", (await text(".sched-day[data-date='2026-11-18']")).includes("W · Cam 19 T1") && (await text("[data-role=sched-progress]")).startsWith("Đã xong 2/160"), await text(".sched-day[data-date='2026-11-18']"));
+
+    // Another study-day pattern: only Wednesday. Today (Tuesday) is a rest day with the next session shown.
+    await realClick("[data-role=sch-settings]");
+    await waitFor(`document.querySelector('dialog[open] #schedule-form')`, 3000);
+    await ev(`document.querySelectorAll('.sch-day input').forEach((b) => { if (b.checked !== (b.dataset.day === '3')) b.click(); })`);
+    await setValue("[data-role=sch-exam]", "");
+    await ev(`document.querySelector('input[name=sch-order][data-value=old]').click()`);
+    await saveDialog();
+    await waitFor(`document.querySelector('[data-role=sched-today]')?.dataset.state === 'rest'`, 5000);
+    ok("not a study day: 'Hôm nay nghỉ' and the next session", (await text("[data-role=sched-today]")).includes("Hôm nay nghỉ") && (await text("[data-role=sched-next]")).startsWith("Buổi kế tiếp: T4 18/11"), await text("[data-role=sched-today]"));
+    ok("no exam date: the progress line says the count is an estimate and there is no warning", (await text("[data-role=sched-progress]")).includes("chưa đặt ngày thi") && (await count("[data-role=sched-warning]")) === 0, await text("[data-role=sched-progress]"));
+    const saved = await dbAll("settings");
+    ok("one settings record, updated in place (days [3], old books first, no exam date)", saved.length === 1 && saved[0].days.join() === "3" && saved[0].order === "old" && saved[0].examDate === "");
+    await shot(mobile ? "sched-m-rest.png" : "sched-d-rest.png");
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
+  } else if (scenario === "schedule-sync") {
+    // The schedule settings travel through Google Drive like the other data (FAKE sign-in and FAKE Drive, as in "sync").
+    let fails = 0;
+    const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: FAKE_DRIVE });
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: FREEZE_TUESDAY });
+    const W = 1280, H = 800;
+    const ev = (e) => evalJs(e);
+    const text = (sel) => ev(`document.querySelector(${JSON.stringify(sel)})?.textContent ?? null`);
+    const statusSel = "#sync-status .sync-text";
+    const status = () => text(statusSel);
+    const waitStatus = (starts, ms = 12000) => waitFor(`document.querySelector(${JSON.stringify(statusSel)})?.textContent.startsWith(${JSON.stringify(starts)})`, ms);
+    const realClick = async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error('no ' + ${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`);
+      for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: r.x, y: r.y, button: "left", clickCount: 1 });
+    };
+    const dlgBtn = (label) => ev(`(() => { const b = [...document.querySelectorAll('dialog[open] button')].filter((x) => x.textContent.trim() === ${JSON.stringify(label)}).at(-1); if (!b) return null; document.querySelectorAll('[data-e2e]').forEach((x) => delete x.dataset.e2e); b.dataset.e2e = 'x'; return 'dialog[open] button[data-e2e=x]'; })()`);
+    const clickBtn = async (label) => { const sel = await dlgBtn(label); if (!sel) throw new Error("no dialog button " + label); await realClick(sel); await sleep(300); };
+    const closeDialogs = () => ev(`document.querySelectorAll('dialog[open]').forEach((d) => d.close())`);
+    const dbAll = (store) => ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const q = r.result.transaction('${store}').objectStore('${store}').getAll(); q.onsuccess = () => res(q.result.filter(x => !x.deleted)); }; })`);
+    const driveFile = () => ev(`JSON.parse(localStorage.getItem('__fakeFile') || 'null')`);
+    const driveJson = async () => { const f = await driveFile(); return f ? JSON.parse(f.content) : null; };
+    const setRemote = (fn) => ev(`(() => { const f = JSON.parse(localStorage.getItem('__fakeFile')); const j = JSON.parse(f.content); (${fn})(j); f.content = JSON.stringify(j); f.modifiedTime = new Date(Date.now() + 5000).toISOString(); localStorage.setItem('__fakeFile', JSON.stringify(f)); })()`);
+    const setValue = (sel, v) => ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+
+    await go(BASE + "manifest.json", W, H);
+    await ev(`localStorage.clear()`);
+    await go(BASE + "#/", W, H);
+    await waitFor(`document.querySelector('#sync-status .sync-text') && document.querySelector('.dashboard-body .hero')`, 15000);
+    await realClick("#sync-status .sync-line");
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Kết nối Google Drive");
+    ok("connected and synced", await waitStatus("Đã đồng bộ"), await status());
+    await closeDialogs();
+
+    // Save a schedule on this machine: it reaches the Drive file after the quiet period
+    await realClick("[data-role=sch-settings]");
+    await waitFor(`document.querySelector('dialog[open] #schedule-form')`, 3000);
+    await setValue("[data-role=sch-minutes]", "90");
+    await setValue("[data-role=sch-exam]", "2027-03-01");
+    await realClick("[data-role=sch-save]");
+    await sleep(500);
+    ok("the schedule is saved locally", (await dbAll("settings")).length === 1);
+    ok("it reaches the Drive file (settings store, schemaVersion 3) after the quiet period", await waitFor(`(() => { const j = JSON.parse(JSON.parse(localStorage.getItem('__fakeFile')).content); return j.schemaVersion === 3 && j.data.settings?.[0]?.key === 'schedule' && j.data.settings[0].minutes === 90; })()`, 9000), JSON.stringify((await driveJson())?.data?.settings));
+
+    // "The other machine" saves a newer schedule: pulled by 'Đồng bộ ngay', and the Dashboard shows it
+    await setRemote(`(j) => { j.data.settings[0] = { ...j.data.settings[0], examDate: '2027-04-20', minutes: 45, days: [6, 7], updatedAt: new Date(Date.now() + 60000).toISOString() }; }`);
+    await realClick("#sync-status .sync-line");
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Đồng bộ ngay");
+    ok("pull: the newer schedule replaces the local one as a whole", await waitFor(`(async () => { const r = await new Promise(res => { const q = indexedDB.open('elh'); q.onsuccess = () => { const g = q.result.transaction('settings').objectStore('settings').getAll(); g.onsuccess = () => res(g.result); }; }); return r.length === 1 && r[0].minutes === 45 && r[0].examDate === '2027-04-20' && r[0].days.join() === '6,7'; })()`, 6000));
+    await closeDialogs();
+    await go(BASE + "#/", W, H);
+    await waitFor(`document.querySelector('[data-role=sched-progress]')`, 6000);
+    ok("the Dashboard shows the pulled exam date (20/04/2027)", (await text("[data-role=sched-progress]")).includes("20/04/2027"), await text("[data-role=sched-progress]"));
+
+    // A Drive file written by an older app (schema 2, no settings store): read, and the local schedule survives
+    await setRemote(`(j) => { j.schemaVersion = 2; delete j.data.settings; }`);
+    await waitStatus("Đã đồng bộ");
+    await realClick("#sync-status .sync-line");
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Đồng bộ ngay");
+    await sleep(1500);
+    ok("an older Drive file is accepted: the local schedule is kept and the file is brought up to schema 3 with it", (await dbAll("settings")).length === 1 && await waitFor(`(() => { const j = JSON.parse(JSON.parse(localStorage.getItem('__fakeFile')).content); return j.schemaVersion === 3 && j.data.settings?.[0]?.minutes === 45; })()`, 9000));
+    await closeDialogs();
+
+    // A Drive file from a NEWER app: refused with the update instructions, and it is not overwritten
+    await setRemote(`(j) => { j.schemaVersion = 9; }`);
+    await realClick("#sync-status .sync-line");
+    await waitFor(`document.querySelector('dialog[open] .sync-dialog')`, 3000);
+    await clickBtn("Đồng bộ ngay");
+    await sleep(1500);
+    const msg = await ev(`document.body.innerText`);
+    ok("a newer file: the message says how to update (reload 2-3 times; close the installed app fully and reopen)", msg.includes("Tải lại trang 2–3 lần; nếu đã cài ra màn hình chính thì đóng hẳn app rồi mở lại"));
+    ok("the newer Drive file is untouched", (await driveJson()).schemaVersion === 9);
+    console.log(fails === 0 ? "ALL PASS" : `${fails} FAILED`);
   } else if (scenario === "sync" || scenario === "sync-m") {
     // Google Drive sync (step 7) against a FAKE Google sign-in and a FAKE Drive (both injected into the page; the real
     // Google is never contacted). The fake Drive file lives in localStorage so it survives reloads, like a remote copy.
     let fails = 0;
     const ok = (name, cond, detail = "") => { if (!cond) fails++; console.log(`${cond ? "PASS" : "FAIL"}  ${name}${detail !== "" ? " — " + detail : ""}`); };
-    const FAKE = `(() => {
-      const L = localStorage;
-      window.__tokenRequests = []; window.__userActive = []; window.__driveCalls = [];
-      window.google = { accounts: { oauth2: {
-        initTokenClient(cfg) { return { requestAccessToken(o) {
-          __tokenRequests.push(o); __userActive.push(navigator.userActivation.isActive);
-          setTimeout(() => { if (L.getItem('__gisMode') === 'fail') cfg.error_callback({ type: 'popup_failed_to_open' }); else cfg.callback({ access_token: 'FAKE-TOKEN', expires_in: 3600 }); }, 20);
-        } }; },
-        hasGrantedAllScopes: () => true,
-        revoke(t, cb) { window.__revoked = t; cb && cb(); } } } };
-      const realFetch = window.fetch.bind(window);
-      window.fetch = async (url, init = {}) => {
-        const u = new URL(url, location.href);
-        if (u.hostname !== 'www.googleapis.com') return realFetch(url, init);
-        __driveCalls.push((init.method || 'GET') + ' ' + u.pathname);
-        const mode = L.getItem('__fakeMode') || 'ok';
-        if (mode === 'offline') throw new TypeError('Failed to fetch');
-        if (mode === '401' || !init.headers || init.headers.Authorization !== 'Bearer FAKE-TOKEN') return new Response('', { status: 401 });
-        const file = JSON.parse(L.getItem('__fakeFile') || 'null');
-        const reply = (o) => new Response(JSON.stringify(o), { status: 200 });
-        if (u.pathname === '/drive/v3/files' && !init.method) return reply({ files: file ? [{ id: 'F1', createdTime: file.createdTime, modifiedTime: file.modifiedTime }] : [] });
-        if (u.pathname === '/drive/v3/files/F1' && !init.method) return file ? new Response(file.content) : new Response('', { status: 404 });
-        if (u.pathname === '/upload/drive/v3/files/F1' && init.method === 'PATCH') { file.content = init.body; file.modifiedTime = new Date(Date.now() + 1).toISOString(); L.setItem('__fakeFile', JSON.stringify(file)); return reply({ id: 'F1', modifiedTime: file.modifiedTime }); }
-        if (u.pathname === '/upload/drive/v3/files' && init.method === 'POST') {
-          const parts = init.body.split(/--[^\\r\\n]+/).filter((p) => p.includes('Content-Type'));
-          const made = { createdTime: new Date().toISOString(), modifiedTime: new Date().toISOString(), content: parts[1].split('\\r\\n\\r\\n')[1].trim() };
-          L.setItem('__fakeFile', JSON.stringify(made));
-          return reply({ id: 'F1', modifiedTime: made.modifiedTime });
-        }
-        return new Response('', { status: 400 });
-      };
-    })();`;
+    const FAKE = FAKE_DRIVE;
     await send("Page.addScriptToEvaluateOnNewDocument", { source: FAKE });
     const mobile = scenario === "sync-m";
     const [W, H] = mobile ? [390, 844] : [1280, 800];
@@ -1802,8 +1978,8 @@ try {
     for (const f of backups()) unlinkSync(join(dlDir, f)); // a stale file of the same name would hide a missing download
 
     // Local data exists first, so the first-sync backup has something to protect. It is written the way VERSION 2 of the
-    // app stored it (a real database at version 2 with old data, tombstone included) and then opened by this version (3):
-    // the upgrade must only add the recordings store and keep every old record.
+    // app stored it (a real database at version 2 with old data, tombstone included) and then opened by this version (4):
+    // the upgrade must only add the settings and recordings stores and keep every old record.
     await go(BASE + "manifest.json", W, H); // same origin, no app code: nothing has opened the database yet
     await ev(`new Promise((res, rej) => {
       const r = indexedDB.open('elh', 2);
@@ -1842,7 +2018,7 @@ try {
     await waitFor(`document.querySelector('#sync-status .sync-text') && document.querySelector('.dashboard-body')`, 15000);
     await sleep(500);
     const up = await ev(`new Promise(res => { const r = indexedDB.open('elh'); r.onsuccess = () => { const db = r.result; const names = [...db.objectStoreNames]; const out = { version: db.version, stores: names.sort(), counts: {}, rec: {}, idx: {} }; const tx = db.transaction(names); let n = 0; for (const s of names) { const st = tx.objectStore(s); out.idx[s] = [...st.indexNames].sort().join(','); const q = st.getAll(); q.onsuccess = () => { out.counts[s] = q.result.length; out.rec[s] = Object.fromEntries(q.result.map((x) => [x.id ?? x.key, x])); if (++n === names.length) { db.close(); res({ version: out.version, stores: out.stores, counts: out.counts, idx: out.idx, v0: out.rec.vocab['v2-0'], gone: out.rec.vocab['v2-gone'], err: out.rec.errors['e2-0'], att: out.rec.attempts['a2-0'], sub: out.rec.submissions['s2-0'], test: out.rec.tests['15-1'] }); } }; } }; })`);
-    ok("upgrade 2 -> 3: the database is now version 3 and has the 10 data stores plus 'recordings'", up.version === 3 && up.stores.length === 11 && up.stores.includes("recordings") && ["vocab", "errors", "occurrences", "attempts", "tests", "submissions", "sessions", "exercises", "notebooks", "notes"].every((n) => up.stores.includes(n)), JSON.stringify(up.stores));
+    ok("upgrade 2 -> 4: the database is now version 4 and has the 10 old data stores plus 'settings' and 'recordings'", up.version === 4 && up.stores.length === 12 && up.stores.includes("recordings") && up.stores.includes("settings") && up.counts.settings === 0 && ["vocab", "errors", "occurrences", "attempts", "tests", "submissions", "sessions", "exercises", "notebooks", "notes"].every((n) => up.stores.includes(n)), JSON.stringify(up.stores));
     ok("upgrade: every old record is still there (4 vocab with the tombstone, 1 error, 1 attempt, 1 submission, 1 test, 1 occurrence)", up.counts.vocab === 4 && up.counts.errors === 1 && up.counts.attempts === 1 && up.counts.submissions === 1 && up.counts.tests === 1 && up.counts.occurrences === 1 && up.counts.recordings === 0, JSON.stringify(up.counts));
     ok("upgrade: the old records are unchanged field by field, the tombstone is still a tombstone", up.v0.meaningVi === "cũ 0" && up.v0.box === 2 && up.v0.lemmaPos === "legacyone|" && up.gone.deleted === true && up.err.original === "He go home." && up.err.occurrences === 3 && up.att.rawScore === 31 && up.att.band === 7 && up.sub.text === "old essay text" && up.test.note === "cũ");
     ok("upgrade: the old stores keep their indexes (nothing re-created) and recordings has its own", up.idx.vocab === "box,lemmaPos,nextReview,topic" && up.idx.attempts === "bookTest,skill" && up.idx.recordings === "createdAt,submissionId", JSON.stringify(up.idx));
@@ -2551,7 +2727,7 @@ try {
       const dump = JSON.stringify(b) + JSON.stringify(payload);
       return { backupKeys: Object.keys(b.data).sort().join(','), payloadKeys: Object.keys(payload.data).sort().join(','), rawKeys: Object.keys(raw).sort().join(','), hasName: dump.includes('recordings'), hasAudio: /audio\\/(webm|mp4|ogg)/.test(dump), size: dump.length };
     })()`);
-    ok("backup JSON, the Drive sync payload and exportRaw contain no recordings and no audio", !/recordings/.test(leak.backupKeys + leak.payloadKeys + leak.rawKeys) && leak.backupKeys.split(",").length === 10 && leak.payloadKeys === leak.backupKeys && !leak.hasName && !leak.hasAudio && leak.size < 200000, JSON.stringify(leak));
+    ok("backup JSON, the Drive sync payload and exportRaw contain no recordings and no audio", !/recordings/.test(leak.backupKeys + leak.payloadKeys + leak.rawKeys) && leak.backupKeys.split(",").length === 11 && leak.payloadKeys === leak.backupKeys && !leak.hasName && !leak.hasAudio && leak.size < 200000, JSON.stringify(leak));
 
     // switch "Tự chuyển thành chữ": off on iPhone/iPad by default, the saved choice wins
     const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
