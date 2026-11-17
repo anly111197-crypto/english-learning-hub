@@ -8,6 +8,9 @@ const PDFJS_URL = new URL("../vendor/pdfjs/pdf.min.mjs", import.meta.url).href;
 const WORKER_URL = new URL("../vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
 const RENDERER_URL = new URL("../vendor/pdfjs/pdf.renderer.min.mjs", import.meta.url).href;
 
+const WASM_DIR = new URL("../vendor/pdfjs/wasm/", import.meta.url).href;
+const FONT_DIR = new URL("../vendor/pdfjs/standard_fonts/", import.meta.url).href;
+
 export const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const PAD = 12; // gap + side padding, in CSS px
 
@@ -134,8 +137,9 @@ export function createPdfViewer({ url, name }) {
     try {
       const lib = await loadLib();
       if (st.destroyed) return;
-      // No eval, and nothing is fetched for fonts / cmaps: the file stays on this device.
-      const task = lib.getDocument({ url, isEvalSupported: false });
+      // No eval. wasm (JPX / JBIG2 scans, colour profiles) and the standard fonts come from our own folder, never a CDN;
+      // the service worker caches them the first time they are used. The URLs must end with "/".
+      const task = lib.getDocument({ url, isEvalSupported: false, wasmUrl: WASM_DIR, standardFontDataUrl: FONT_DIR });
       st.doc = await task.promise;
       if (st.destroyed) { st.doc.destroy(); return; }
       const first = await st.doc.getPage(1);

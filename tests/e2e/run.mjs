@@ -1541,6 +1541,30 @@ try {
       out += `xref\n0 ${objs.length}\n0000000000 65535 f \n${offs.slice(1).map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<</Size ${objs.length}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF\n`;
       const p = join(dir, "Sample multi page.pdf"); writeFileSync(p, out); return p;
     };
+    // One page whose only content is an 8x8 JBIG2 (MMR) image: a black block (columns 2-5, rows 2-5) scaled to 300x300 pt.
+    const jbig2Pdf = (dir) => {
+      const bits = "1" + "1" + "00101110111" + "111" + "111" + "111" + "00011" + "1";
+      const mmr = Buffer.alloc(Math.ceil(bits.length / 8));
+      [...bits].forEach((b, i) => { if (b === "1") mmr[i >> 3] |= 0x80 >> (i & 7); });
+      const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32BE(n); return b; };
+      const pageInfo = Buffer.concat([u32(0), Buffer.from([0x30, 0x00, 0x01]), u32(19), u32(8), u32(8), u32(0), u32(0), Buffer.from([0, 0, 0])]);
+      const region = Buffer.concat([u32(8), u32(8), u32(0), u32(0), Buffer.from([0]), Buffer.from([0x01]), mmr]);
+      const generic = Buffer.concat([u32(1), Buffer.from([0x26, 0x00, 0x01]), u32(region.length), region]);
+      const img = Buffer.concat([pageInfo, generic]);
+      const parts = []; const offs = []; let len = 0;
+      const push = (b) => { const buf = Buffer.isBuffer(b) ? b : Buffer.from(b, "latin1"); parts.push(buf); len += buf.length; };
+      const content = "q 300 0 0 300 100 400 cm /Im1 Do Q";
+      push("%PDF-1.4\n");
+      const obj = (n, body) => { offs[n] = len; push(`${n} 0 obj\n`); push(body); push("\nendobj\n"); };
+      obj(1, "<</Type/Catalog/Pages 2 0 R>>");
+      obj(2, "<</Type/Pages/Kids[3 0 R]/Count 1>>");
+      obj(3, "<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Resources<</XObject<</Im1 5 0 R>>>>/Contents 4 0 R>>");
+      obj(4, `<</Length ${content.length}>>\nstream\n${content}\nendstream`);
+      obj(5, Buffer.concat([Buffer.from(`<</Type/XObject/Subtype/Image/Width 8/Height 8/ColorSpace/DeviceGray/BitsPerComponent 1/Filter/JBIG2Decode/Length ${img.length}>>\nstream\n`, "latin1"), img, Buffer.from("\nendstream", "latin1")]));
+      const xref = len;
+      push(`xref\n0 6\n0000000000 65535 f \n${offs.slice(1).map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<</Size 6/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF\n`);
+      const p = join(dir, "Sample jbig2 scan.pdf"); writeFileSync(p, Buffer.concat(parts)); return p;
+    };
     const mouse = (type, x, y) => send("Input.dispatchMouseEvent", { type, x, y, button: "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: 1 });
     const dividerPos = () => evalJs(`(() => { const r = document.querySelector('[data-role=run-divider]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()`);
     const leftRatio = () => evalJs(`(() => { const a = document.querySelector('.run-source').getBoundingClientRect(), b = document.querySelector('.run-sheet').getBoundingClientRect(); return a.width / (a.width + b.width); })()`);
@@ -1622,6 +1646,15 @@ try {
       await shot("ipad-pdf.png");
       ok("the divider is there on the iPad (two columns, touch-friendly >= 12px)", (await dividerPos()).w >= 12);
       ok("nothing from the file is stored (names only)", !(await evalJs(`JSON.stringify(Object.entries(localStorage)).includes('blob:')`)));
+
+      // A scan-like page: its only content is a JBIG2 image (needs the vendored wasm decoder, loaded from our own folder).
+      const jb = jbig2Pdf(fakeDir);
+      await pickFiles([jb]);
+      ok("JBIG2 page: drawn on a canvas", await waitFor(`!!document.querySelector('.pdfv-pg canvas')`, 15000));
+      const px = (fx, fy) => evalJs(`(() => { const c = document.querySelector('.pdfv-pg canvas'); const d = c.getContext('2d').getImageData(Math.floor(c.width * ${fx}), Math.floor(c.height * ${fy}), 1, 1).data; return d[0]; })()`);
+      ok("JBIG2 page: the black block is there (dark in the middle of it, white above it)", await waitFor(`(() => { const c = document.querySelector('.pdfv-pg canvas'); if (!c) return false; const d = c.getContext('2d').getImageData(Math.floor(c.width * 250 / 612), Math.floor(c.height * (792 - 550) / 792), 1, 1).data; return d[0] < 60; })()`, 10000) && (await px(130 / 612, (792 - 650) / 792)) > 200, `block=${await px(250 / 612, (792 - 550) / 792)} above=${await px(130 / 612, (792 - 650) / 792)}`);
+      ok("the decoder files under js/vendor/pdfjs/wasm/ were requested from our own folder and cached at first use (service worker runtime cache)", await waitFor(`caches.keys().then(async (ks) => { for (const k of ks) { const r = await (await caches.open(k)).keys(); if (r.some((q) => q.url.includes('/js/vendor/pdfjs/wasm/'))) return true; } return false; })`, 8000));
+      ok("the install list does not carry the ~2 MB (not in APP_SHELL)", !(await evalJs(`fetch('sw.js').then((r) => r.text()).then((t) => /APP_SHELL = \\[[\\s\\S]*?\\];/.exec(t)[0].includes('pdfjs/wasm') || /APP_SHELL = \\[[\\s\\S]*?\\];/.exec(t)[0].includes('standard_fonts'))`)));
       await evalJs(`location.hash = '#/practice'`);
       await sleep(600);
       ok("leaving the run screen removes the viewer", (await count("[data-role=pdf-viewer]")) === 0);

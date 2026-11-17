@@ -9,6 +9,9 @@
   - `LICENSE` - Apache License 2.0, Copyright Mozilla Foundation
 - Source: https://github.com/mozilla/pdf.js
 - Used only by `js/components/pdf-viewer.js`, only on iPhone / iPad ("File trên máy"). Loaded with a dynamic `import()`.
-- Not loaded from a CDN: the app works offline. `getDocument` is called with `isEvalSupported: false`; no font, cmap or
-  wasm URL is set, so nothing is fetched from the network.
+- Also vendored from the same package: `wasm/` (JBIG2 + JPX decoders, colour profile, quickjs; with their LICENSE_* files) and
+  `standard_fonts/` (Foxit + Liberation fonts with LICENSE_FOXIT / LICENSE_LIBERATION), about 2.2 MB in all. They are not in
+  APP_SHELL: `sw.js` caches them the first time a PDF needs them (scans with JPX / JBIG2 images, non-embedded fonts).
+- Not loaded from a CDN: the app works offline once those files have been used. `getDocument` is called with `isEvalSupported: false`,
+  `wasmUrl` and `standardFontDataUrl` pointing at the local folders (they must end with `/`); no cmap URL is set.
 - To update: `npm pack pdfjs-dist@<version>`, copy the three legacy files + LICENSE, change this file and bump `CACHE_VERSION`.
