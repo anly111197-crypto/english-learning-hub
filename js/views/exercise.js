@@ -189,6 +189,33 @@ async function showResult() {
   }
 }
 
+// One line of the result: the question (clamped, click to expand), the learner's answer, the right answer when wrong,
+// and an explanation that stays closed until asked for. Display only.
+function resultItem(it) {
+  const wrong = it.correct !== true;
+  const accepted = (it.acceptedAnswers || []).filter((a) => a && a !== it.answer);
+  const q = h("button", { type: "button", class: "ex-result-q", "aria-expanded": "false", dataset: { role: "ex-result-q" },
+    onClick: (e) => {
+      const open = e.currentTarget.classList.toggle("is-open");
+      e.currentTarget.setAttribute("aria-expanded", String(open));
+    } }, it.question || "");
+  const expl = h("p", { class: "ex-result-expl", hidden: true, dataset: { role: "ex-result-expl" } }, it.explanationVi || "Chưa có giải thích.");
+  const btn = h("button", { type: "button", class: "btn btn-outline btn-sm ex-result-expl-btn", "aria-expanded": "false", dataset: { role: "ex-result-expl-btn" },
+    onClick: () => {
+      expl.hidden = !expl.hidden;
+      btn.setAttribute("aria-expanded", String(!expl.hidden));
+    } }, "Giải thích");
+  return h("li", { class: "ex-result-item", dataset: { correct: String(it.correct === true) } },
+    h("span", { class: "ex-result-mark", "aria-hidden": "true" }, it.correct === true ? "✓" : "✗"),
+    h("div", { class: "ex-result-body" },
+      h("p", { class: "ex-result-kind muted" }, KIND_LABELS[it.kind], it.selfGraded ? " (tự chấm)" : ""),
+      q,
+      h("p", { class: "ex-result-line", dataset: { role: "ex-result-yours" } }, h("strong", {}, "Bạn trả lời: "), it.userAnswer ?? "(chưa trả lời)"),
+      wrong ? h("p", { class: "ex-result-line", dataset: { role: "ex-result-answer" } }, h("strong", {}, "Đáp án: "), it.answer,
+        accepted.length ? h("span", { class: "muted" }, ` (cũng chấp nhận: ${accepted.join(" / ")})`) : null) : null,
+      btn, expl));
+}
+
 function resultView() {
   const { perError, suggestFixed } = s.result;
   const total = s.ex.items.length;
@@ -200,9 +227,7 @@ function resultView() {
       h("div", { class: "ex-result-head" },
         h("p", { class: "ex-result-title" }, err ? errorLabel(err) : "Lỗi đã xoá"),
         h("strong", { class: "ex-result-score nowrap", dataset: { role: "ex-error-score" } }, `${p.correct}/${p.total}`)),
-      h("ul", { class: "ex-result-items" }, items.map((it) => h("li", { class: "ex-result-item", dataset: { correct: String(it.correct === true) } },
-        h("span", { class: "ex-result-mark", "aria-hidden": "true" }, it.correct === true ? "✓" : "✗"),
-        h("span", { class: "ex-result-text" }, `${KIND_LABELS[it.kind]}: ${it.userAnswer ?? ""}`, it.selfGraded ? " (tự chấm)" : "")))),
+      h("ul", { class: "ex-result-items" }, items.map(resultItem)),
       s.fixedNow.has(p.errorId)
         ? h("p", { class: "ex-fixed", dataset: { role: "ex-fixed-done" } }, "Đã đánh dấu là đã khắc phục.")
         : suggest

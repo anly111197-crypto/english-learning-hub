@@ -1,6 +1,6 @@
 // Network-first for same-origin files: online -> fresh copy (and cache it); offline -> cache.
 // Bump CACHE_VERSION at every step so old caches are dropped.
-const CACHE_VERSION = "elh-v16";
+const CACHE_VERSION = "elh-v17";
 
 const APP_SHELL = [
   "./",

@@ -2605,7 +2605,21 @@ try {
     ok("stored: doneAt, score 5, every question with userAnswer / correct / selfGraded", !!done1.doneAt && done1.score === 5 && done1.items.every((i) => i.userAnswer !== null && typeof i.correct === "boolean") && done1.items.filter((i) => i.selfGraded).length === 2);
     const errsAfter = await dbLive("errors");
     ok("the status is untouched until the learner presses; the second mistake got warm-up priority 1 (one wrong answer), the first 0", errsAfter.find((e) => e.id === "e1").status === "new" && (errsAfter.find((e) => e.id === "e1").warmupPriority ?? 0) === 0 && errsAfter.find((e) => e.id === "e2").warmupPriority === 1 && errsAfter.find((e) => e.id === "e2").status === "practicing");
+    const wrongRows = await ev(`[...document.querySelectorAll('.ex-result-item[data-correct=false]')].map((li) => ({ q: li.querySelector('[data-role=ex-result-q]').textContent, yours: li.querySelector('[data-role=ex-result-yours]').textContent, ans: li.querySelector('[data-role=ex-result-answer]')?.textContent || '' }))`);
+    const wrongItems = done1.items.filter((i) => i.correct !== true);
+    ok("result rows: every wrong line shows its question, 'Bạn trả lời: ...' and 'Đáp án: ...'", wrongItems.length >= 1 && wrongRows.length === wrongItems.length && wrongRows.every((r, i) => r.q === wrongItems[i].question && r.yours === "Bạn trả lời: " + wrongItems[i].userAnswer && r.ans.startsWith("Đáp án: " + wrongItems[i].answer)), JSON.stringify(wrongRows));
+    ok("result rows: a right line has no 'Đáp án'; the explanation is hidden by default and opens/closes with 'Giải thích'",
+      (await count(".ex-result-item[data-correct=true] [data-role=ex-result-answer]")) === 0 &&
+      (await ev(`[...document.querySelectorAll('[data-role=ex-result-expl]')].every((p) => p.hidden)`)) &&
+      await (async () => {
+        await realClick(".ex-result-item[data-correct=false] [data-role=ex-result-expl-btn]");
+        const opened = await ev(`!document.querySelector('.ex-result-item[data-correct=false] [data-role=ex-result-expl]').hidden`);
+        await realClick(".ex-result-item[data-correct=false] [data-role=ex-result-expl-btn]");
+        return opened && await ev(`document.querySelector('.ex-result-item[data-correct=false] [data-role=ex-result-expl]').hidden`);
+      })());
+    await realClick(".ex-result-item[data-correct=false] [data-role=ex-result-expl-btn]");
     await shot(mobile ? "ex-m-result.png" : "ex-d-result.png");
+    await realClick(".ex-result-item[data-correct=false] [data-role=ex-result-expl-btn]");
     if (mobile) ok("390px: the result has no overflow", await noOverflow());
     await realClick("[data-role=ex-mark-fixed]");
     ok("pressing it marks the mistake fixed (and says so)", await waitFor(`document.querySelector('[data-role=ex-fixed-done]')`, 4000) && (await dbLive("errors")).find((e) => e.id === "e1").status === "fixed" && (await count("[data-role=ex-mark-fixed]")) === 0);
